@@ -28,8 +28,8 @@ Follow this precedence:
 6. Existing code
 
 The currently approved UI reference set contains:
-- 5 Desktop Website screens
-- 3 Mobile/Android screens
+- 8 Desktop Website screens
+- 5 Mobile/Android screens
 - 5 Desktop Back Office screens
 
 A missing screen does not imply an approved design exists.
