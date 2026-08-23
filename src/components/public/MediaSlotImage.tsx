@@ -1,78 +1,98 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 
+function ratioToPadding(aspectRatio?: string): string | undefined {
+  if (!aspectRatio) return undefined;
+  const [w, h] = aspectRatio.split(":").map(Number);
+  if (!w || !h) return undefined;
+  return `${(h / w) * 100}%`;
+}
+
+/**
+ * Renders a managed media slot.
+ *
+ * A slot with no approved asset yet must still hold its exact space: the
+ * placeholder uses the same aspect ratio as the real image so the surrounding
+ * layout never shifts or collapses when media is later attached in the Back
+ * Office. It is a designed, quiet placeholder rather than a broken-image box.
+ */
 export function MediaSlotImage({
   slotId,
   altText,
   aspectRatio,
+  label,
 }: {
   slotId: string;
   altText?: string;
   aspectRatio?: string;
+  /** Short human label for the empty state, e.g. "Warli illustration". */
+  label?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchUrl() {
       try {
         const params = new URLSearchParams({ slot_id: slotId });
         const res = await fetch(`/api/public/media-slot?${params.toString()}`);
         const body = await res.json().catch(() => ({ data: null }));
-
-        if (!body.data?.url) {
-          setUnavailable(true);
-        } else {
-          setUrl(body.data.url);
-        }
+        if (!cancelled) setUrl(body.data?.url ?? null);
       } catch {
-        setUnavailable(true);
+        if (!cancelled) setUrl(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     fetchUrl();
+    return () => {
+      cancelled = true;
+    };
   }, [slotId]);
 
-  if (unavailable || (!url && !loading)) {
-    return <div className="media-placeholder">Image not available</div>;
-  }
+  const paddingBottom = ratioToPadding(aspectRatio);
+  const frameStyle: React.CSSProperties = paddingBottom
+    ? { position: "relative", width: "100%", paddingBottom }
+    : { position: "relative", width: "100%", height: "100%" };
 
-  if (loading) {
-    return <div className="media-loading">Loading image...</div>;
-  }
+  const fillStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+  };
 
-  const containerStyle: React.CSSProperties = aspectRatio
-    ? {
-        position: "relative",
-        width: "100%",
-        paddingBottom: calculatePaddingBottom(aspectRatio),
-      }
-    : { width: "100%" };
-
-  const imageStyle: React.CSSProperties = aspectRatio
-    ? { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }
-    : { width: "100%", height: "auto" };
-
-  return (
-    <div style={containerStyle}>
-      {url && (
+  if (url) {
+    return (
+      <div className="media-slot" style={frameStyle}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
-          alt={altText || "Content image"}
-          style={imageStyle}
+          alt={altText || ""}
+          style={{ ...fillStyle, objectFit: "cover" }}
         />
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="media-slot" style={frameStyle}>
+      <div
+        className={`media-slot__empty${loading ? " is-loading" : ""}`}
+        style={fillStyle}
+        role="img"
+        aria-label={
+          loading ? "Loading image" : altText || label || "Image coming soon"
+        }
+      >
+        {!loading && (
+          <span className="media-slot__label">{label || altText}</span>
+        )}
+      </div>
     </div>
   );
-}
-
-function calculatePaddingBottom(aspectRatio: string): string {
-  const [w, h] = aspectRatio.split(":").map(Number);
-  const percentage = (h / w) * 100;
-  return `${percentage}%`;
 }

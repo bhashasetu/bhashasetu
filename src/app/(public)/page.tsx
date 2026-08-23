@@ -3,6 +3,72 @@ import { createClient } from "@/lib/supabase/server";
 import { MediaSlotImage } from "@/components/public/MediaSlotImage";
 import "./homepage.css";
 
+/**
+ * Navigation targets and the labels shown while a media slot is still empty.
+ * The editorial copy itself lives in the CMS; these entries only bind each
+ * card to its slot and destination.
+ */
+const LEARN_CARDS = [
+  {
+    slotKey: "card_warli_image",
+    title: "Warli Language",
+    body: "Explore words, phrases, songs and stories from the Warli community.",
+    cta: "Explore Warli",
+    href: "/learn/warli",
+    altText: "Warli language",
+    placeholderLabel: "Warli",
+  },
+  {
+    slotKey: "card_katkari_image",
+    title: "Katkari Language",
+    body: "Discover the rich oral traditions and everyday expressions of Katkari.",
+    cta: "Explore Katkari",
+    href: "/learn/katkari",
+    altText: "Katkari language",
+    placeholderLabel: "Katkari",
+  },
+  {
+    slotKey: "card_play_image",
+    title: "Play & Learn",
+    body: "Games, quizzes and activities that make learning joyful.",
+    cta: "Start Playing",
+    href: "/play",
+    altText: "Play and learn",
+    placeholderLabel: "Play",
+  },
+  {
+    slotKey: "card_stories_image",
+    title: "Stories & Voices",
+    body: "Real stories. Real people. Voices from our communities.",
+    cta: "Listen Now",
+    href: "/stories",
+    altText: "Stories and voices",
+    placeholderLabel: "Stories",
+  },
+] as const;
+
+const TESTIMONIALS = [
+  {
+    slotKey: "testimonial_1_image",
+    name: "Bhagwan Kharvi",
+    role: "Warli Community Elder",
+    quote: "Our language carries our memories, our songs, our way of life.",
+  },
+  {
+    slotKey: "testimonial_2_image",
+    name: "Sushila Bhoye",
+    role: "Katkari Community Member",
+    quote: "When our children learn our language, our culture lives on.",
+  },
+  {
+    slotKey: "testimonial_3_image",
+    name: "Team Bhasha Setu",
+    role: "Student Innovators",
+    quote:
+      "We built Bhasha Setu to give back to the communities that inspire us.",
+  },
+] as const;
+
 export default async function HomePage() {
   const supabase = await createClient();
 
@@ -60,10 +126,12 @@ export default async function HomePage() {
       {/* HERO SECTION */}
       {heroSection && (
         <section className="hero-section">
+          {/* The reference composes hero copy, the WRO vehicle photo and the
+              WRO video panel as one band, not as stacked sections. */}
           <div className="hero-container">
             <div className="hero-content">
               <div className="verified-badge">
-                <span>✓</span> Verified Learning Content
+                <span aria-hidden="true">✓</span> Verified Learning Content
               </div>
               <h1 className="hero-heading">
                 {getContent(heroSection, "heading")}
@@ -71,17 +139,19 @@ export default async function HomePage() {
               <p className="hero-description">
                 {getContent(heroSection, "description")}
               </p>
-              <div className="hero-tagline">
-                <span className="tagline-icon">👥</span>
-                Built by students. Rooted in community. Driven by purpose.
-              </div>
               <div className="hero-buttons">
                 <Link href="/learn" className="btn btn-primary">
-                  Start Learning <span>→</span>
+                  Start Learning <span aria-hidden="true">→</span>
                 </Link>
                 <Link href="/languages" className="btn btn-secondary">
                   Explore Languages
                 </Link>
+              </div>
+              <div className="hero-tagline">
+                <span className="tagline-icon" aria-hidden="true">
+                  👥
+                </span>
+                Built by students. Rooted in community. Driven by purpose.
               </div>
             </div>
 
@@ -89,46 +159,39 @@ export default async function HomePage() {
               {getSlot(heroSection, "hero_image") && (
                 <MediaSlotImage
                   slotId={getSlot(heroSection, "hero_image").id}
-                  altText="Bhasha Setu learning platform"
-                  aspectRatio="16:9"
+                  altText="The Bhasha Setu WRO project vehicle"
+                  aspectRatio="4:3"
+                  label="WRO vehicle photograph"
                 />
               )}
             </div>
-          </div>
 
-          {/* WRO PROJECT (integrated into hero area) */}
-          {wroSection && (
-            <div className="wro-section">
-              <div className="wro-container">
-                <div className="wro-title">
-                  {getContent(wroSection, "title")}
-                </div>
-                <div className="wro-content">
-                  <div className="wro-video">
-                    {getSlot(wroSection, "wro_video") && (
-                      <div className="video-placeholder">
-                        <div className="play-button">▶</div>
-                        {getSlot(wroSection, "wro_video") && (
-                          <MediaSlotImage
-                            slotId={getSlot(wroSection, "wro_video").id}
-                            altText="WRO Project video"
-                            aspectRatio="16:9"
-                          />
-                        )}
-                      </div>
-                    )}
-                    <div className="video-time">0:00 / 1:30</div>
-                  </div>
-                  <div className="wro-text">
-                    <p>{getContent(wroSection, "description")}</p>
-                    <Link href="https://youtube.com" className="wro-link">
-                      {getContent(wroSection, "cta_text")} →
-                    </Link>
+            {wroSection && (
+              <aside className="wro-panel">
+                <h2 className="wro-title">{getContent(wroSection, "title")}</h2>
+                <div className="wro-video">
+                  {getSlot(wroSection, "wro_video") && (
+                    <MediaSlotImage
+                      slotId={getSlot(wroSection, "wro_video").id}
+                      altText="Bhasha Setu WRO Future Innovators video"
+                      aspectRatio="16:9"
+                      label="WRO project video"
+                    />
+                  )}
+                  <div className="play-button" aria-hidden="true">
+                    ▶
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+                <p className="wro-text">
+                  {getContent(wroSection, "description")}
+                </p>
+                <Link href="https://youtube.com" className="wro-link">
+                  {getContent(wroSection, "cta_text")}{" "}
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </aside>
+            )}
+          </div>
         </section>
       )}
 
@@ -140,176 +203,115 @@ export default async function HomePage() {
               {getContent(learnSection, "heading")}
             </h2>
             <div className="cards-grid">
-              {/* Warli Card */}
-              <div className="learn-card">
-                <div className="card-icon">
-                  {getSlot(learnSection, "card_warli_image") && (
-                    <MediaSlotImage
-                      slotId={getSlot(learnSection, "card_warli_image").id}
-                      altText="Warli language"
-                      aspectRatio="1:1"
-                    />
-                  )}
-                </div>
-                <h3>Warli Language</h3>
-                <p>Explore words, phrases, songs and stories from the Warli community.</p>
-                <Link href="/learn/warli" className="card-link">
-                  Explore Warli →
-                </Link>
-              </div>
-
-              {/* Katkari Card */}
-              <div className="learn-card">
-                <div className="card-icon">
-                  {getSlot(learnSection, "card_katkari_image") && (
-                    <MediaSlotImage
-                      slotId={getSlot(learnSection, "card_katkari_image").id}
-                      altText="Katkari language"
-                      aspectRatio="1:1"
-                    />
-                  )}
-                </div>
-                <h3>Katkari Language</h3>
-                <p>Discover the rich oral traditions and everyday expressions of Katkari.</p>
-                <Link href="/learn/katkari" className="card-link">
-                  Explore Katkari →
-                </Link>
-              </div>
-
-              {/* Play & Learn Card */}
-              <div className="learn-card">
-                <div className="card-icon">
-                  {getSlot(learnSection, "card_play_image") && (
-                    <MediaSlotImage
-                      slotId={getSlot(learnSection, "card_play_image").id}
-                      altText="Play and learn"
-                      aspectRatio="1:1"
-                    />
-                  )}
-                </div>
-                <h3>Play & Learn</h3>
-                <p>Games, quizzes and activities that make learning joyful.</p>
-                <Link href="/play" className="card-link">
-                  Start Playing →
-                </Link>
-              </div>
-
-              {/* Stories & Voices Card */}
-              <div className="learn-card">
-                <div className="card-icon">
-                  {getSlot(learnSection, "card_stories_image") && (
-                    <MediaSlotImage
-                      slotId={getSlot(learnSection, "card_stories_image").id}
-                      altText="Stories and voices"
-                      aspectRatio="1:1"
-                    />
-                  )}
-                </div>
-                <h3>Stories & Voices</h3>
-                <p>Real stories. Real people. Voices from our communities.</p>
-                <Link href="/stories" className="card-link">
-                  Listen Now →
-                </Link>
-              </div>
+              {LEARN_CARDS.map((card) => {
+                const slot = getSlot(learnSection, card.slotKey);
+                return (
+                  <div className="learn-card" key={card.slotKey}>
+                    <div className="card-icon">
+                      {slot && (
+                        <MediaSlotImage
+                          slotId={slot.id}
+                          altText={card.altText}
+                          aspectRatio="1:1"
+                          label={card.placeholderLabel}
+                        />
+                      )}
+                    </div>
+                    <div className="learn-card__body">
+                      <h3>{card.title}</h3>
+                      <p>{card.body}</p>
+                      <Link href={card.href} className="card-link">
+                        {card.cta} <span aria-hidden="true">→</span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
       )}
 
-      {/* VOICES THAT INSPIRE SECTION */}
-      {voicesSection && (
-        <section className="voices-section">
-          <div className="voices-container">
-            <h2 className="section-title">
-              {getContent(voicesSection, "heading")}
-            </h2>
-            <div className="testimonials-grid">
-              {/* Testimonial 1 */}
-              <div className="testimonial">
-                <div className="testimonial-image">
-                  {getSlot(voicesSection, "testimonial_1_image") && (
+      {/* VOICES THAT INSPIRE + MEET MY BHASHASETU
+          The reference places the testimonials and the chat panel side by side
+          in a single band, not as two stacked sections. */}
+      {(voicesSection || chatSection) && (
+        <section className="community-band">
+          <div className="community-container">
+            {voicesSection && (
+              <div className="voices-column">
+                <h2 className="section-title">
+                  {getContent(voicesSection, "heading")}
+                </h2>
+                <div className="testimonials-grid">
+                  {TESTIMONIALS.map((person) => {
+                    const slot = getSlot(voicesSection, person.slotKey);
+                    return (
+                      <figure className="testimonial" key={person.slotKey}>
+                        <div className="testimonial-image">
+                          {slot && (
+                            <MediaSlotImage
+                              slotId={slot.id}
+                              altText={`Portrait of ${person.name}`}
+                              aspectRatio="1:1"
+                              label="Portrait"
+                            />
+                          )}
+                        </div>
+                        <div className="testimonial-body">
+                          <blockquote className="testimonial-quote">
+                            &ldquo;{person.quote}&rdquo;
+                          </blockquote>
+                          <figcaption>
+                            <span className="testimonial-author">
+                              &ndash; {person.name}
+                            </span>
+                            <span className="testimonial-role">
+                              {person.role}
+                            </span>
+                          </figcaption>
+                        </div>
+                      </figure>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {chatSection && (
+              <div className="chat-panel">
+                <div className="chat-content">
+                  <div className="chat-heading">
+                    <h2>{getContent(chatSection, "title")}</h2>
+                    <span className="companion-badge">
+                      Your Learning Companion
+                    </span>
+                  </div>
+                  <p className="chat-description">
+                    {getContent(chatSection, "description")}
+                  </p>
+                  <ul className="chat-features">
+                    <li>Ask questions</li>
+                    <li>Practice words</li>
+                    <li>Explore stories</li>
+                    <li>Record your voice</li>
+                  </ul>
+                  <Link href="/chat" className="btn btn-chat">
+                    Chat Now
+                  </Link>
+                </div>
+                <div className="chat-robot">
+                  {getSlot(chatSection, "robot_image") && (
                     <MediaSlotImage
-                      slotId={getSlot(voicesSection, "testimonial_1_image").id}
-                      altText="Bhagwan Kharvi"
+                      slotId={getSlot(chatSection, "robot_image").id}
+                      altText="The Bhasha Setu robot, your learning companion"
                       aspectRatio="1:1"
+                      label="Robot"
                     />
                   )}
                 </div>
-                <p className="testimonial-quote">
-                  "Our language carries our memories, our values and our way of life."
-                </p>
-                <p className="testimonial-author">Bhagwan Kharvi</p>
-                <p className="testimonial-role">Warli Community Elder</p>
               </div>
-
-              {/* Testimonial 2 */}
-              <div className="testimonial">
-                <div className="testimonial-image">
-                  {getSlot(voicesSection, "testimonial_2_image") && (
-                    <MediaSlotImage
-                      slotId={getSlot(voicesSection, "testimonial_2_image").id}
-                      altText="Sushila Bhoye"
-                      aspectRatio="1:1"
-                    />
-                  )}
-                </div>
-                <p className="testimonial-quote">
-                  "When our children learn our language, our culture lives on."
-                </p>
-                <p className="testimonial-author">Sushila Bhoye</p>
-                <p className="testimonial-role">Katkari Community Member</p>
-              </div>
-
-              {/* Testimonial 3 */}
-              <div className="testimonial">
-                <div className="testimonial-image">
-                  {getSlot(voicesSection, "testimonial_3_image") && (
-                    <MediaSlotImage
-                      slotId={getSlot(voicesSection, "testimonial_3_image").id}
-                      altText="Team Bhasha Setu"
-                      aspectRatio="1:1"
-                    />
-                  )}
-                </div>
-                <p className="testimonial-quote">
-                  "We built Bhasha Setu to give back to the communities that inspire us."
-                </p>
-                <p className="testimonial-author">Team Bhasha Setu</p>
-                <p className="testimonial-role">Student Innovators</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* MEET MY BHASHASETU SECTION */}
-      {chatSection && (
-        <section className="chat-section">
-          <div className="chat-container">
-            <div className="chat-content">
-              <div className="companion-badge">Your Learning Companion</div>
-              <h2>{getContent(chatSection, "title")}</h2>
-              <p className="chat-description">
-                {getContent(chatSection, "description")}
-              </p>
-              <ul className="chat-features">
-                <li>✓ Ask questions</li>
-                <li>✓ Explore stories</li>
-                <li>✓ Record your voice</li>
-              </ul>
-              <Link href="/chat" className="btn btn-primary">
-                Chat Now
-              </Link>
-            </div>
-            <div className="chat-robot">
-              {getSlot(chatSection, "robot_image") && (
-                <MediaSlotImage
-                  slotId={getSlot(chatSection, "robot_image").id}
-                  altText="My BhashaSetu chat assistant"
-                  aspectRatio="1:1"
-                />
-              )}
-            </div>
+            )}
           </div>
         </section>
       )}
