@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient();
+  const { id } = await params;
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) {
+    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
+  }
+
+  const supabase = adminCheck.supabase;
 
   const { data, error } = await supabase
     .from("pages")
@@ -24,7 +29,7 @@ export async function GET(
       )
       `
     )
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -33,12 +38,16 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, error: authError } = await requireAdmin();
-  if (authError) return authError;
+  const { id } = await params;
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) {
+    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
+  }
 
-  const supabase = await createClient();
+  const supabase = adminCheck.supabase;
+  const { user } = adminCheck;
   const body = await request.json();
 
   const { data, error } = await supabase
@@ -47,7 +56,7 @@ export async function PUT(
       ...body,
       updated_by: user.id,
     })
-    .eq("id", params.id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -57,14 +66,17 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error: authError } = await requireAdmin();
-  if (authError) return authError;
+  const { id } = await params;
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) {
+    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
+  }
 
-  const supabase = await createClient();
+  const supabase = adminCheck.supabase;
 
-  const { error } = await supabase.from("pages").delete().eq("id", params.id);
+  const { error } = await supabase.from("pages").delete().eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

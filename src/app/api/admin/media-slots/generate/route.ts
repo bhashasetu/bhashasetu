@@ -6,10 +6,13 @@ const OPENAI_API_URL = "https://api.openai.com/v1/images/generations";
 const FAL_AI_URL = "https://fal.run/fal-ai/flux-pro/submit";
 
 export async function POST(request: Request) {
-  const { user, error: authError } = await requireAdmin();
-  if (authError) return authError;
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) {
+    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
+  }
 
-  const supabase = await createClient();
+  const supabase = adminCheck.supabase;
+  const { user } = adminCheck;
   const body = await request.json();
   const { slotId, provider, promptId } = body;
 

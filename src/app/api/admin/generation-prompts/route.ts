@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 
 export async function PUT(request: Request) {
-  const { user, error: authError } = await requireAdmin();
-  if (authError) return authError;
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) {
+    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
+  }
 
-  const supabase = await createClient();
+  const supabase = adminCheck.supabase;
   const body = await request.json();
   const { id, prompt_text } = body;
 
@@ -24,10 +25,12 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { error: authError } = await requireAdmin();
-  if (authError) return authError;
+  const adminCheck = await requireAdmin();
+  if (!adminCheck.ok) {
+    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
+  }
 
-  const supabase = await createClient();
+  const supabase = adminCheck.supabase;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
