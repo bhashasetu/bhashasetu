@@ -179,10 +179,10 @@ button {
 .footer-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: var(--spacing-3xl) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-md);
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--spacing-3xl);
+  gap: var(--spacing-xl);
   align-items: start;
 }
 
@@ -207,13 +207,13 @@ button {
 .footer-columns {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--spacing-2xl);
+  gap: var(--spacing-lg);
 }
 
 .footer-col h4 {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
 }
 
 .footer-col ul {
@@ -221,7 +221,11 @@ button {
 }
 
 .footer-col li {
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 5px;
+}
+
+.footer-col a {
+  font-size: var(--font-size-xs);
 }
 
 .footer-col a {
@@ -240,8 +244,8 @@ button {
 }
 
 .social-links a {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   display: flex;
@@ -259,10 +263,11 @@ button {
 
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: var(--spacing-lg);
+  margin: 0 var(--spacing-md);
+  padding: 6px 0;
   text-align: center;
   color: rgba(255, 255, 255, 0.7);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 /* Responsive */

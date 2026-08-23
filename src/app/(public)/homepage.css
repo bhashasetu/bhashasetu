@@ -345,7 +345,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.52fr);
   column-gap: var(--spacing-xl);
-  align-items: end;
+  align-items: stretch;
 }
 
 .voices-column {
@@ -412,9 +412,10 @@
 /* ===== MEET MY BHASHASETU PANEL ===== */
 .chat-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
+  grid-template-columns: minmax(0, 1fr) 132px;
   column-gap: var(--spacing-sm);
   align-items: end;
+  align-self: end;
   background: #F1F6F2;
   border: 1px solid var(--color-success-light);
   border-radius: var(--radius-md);
@@ -493,7 +494,7 @@
 }
 
 .chat-robot {
-  width: 150px;
+  width: 132px;
   align-self: end;
 }
 
