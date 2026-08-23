@@ -6,7 +6,9 @@ import "./homepage.css";
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Fetch homepage with all sections and media
+  // Fetch the published homepage with all sections and media.
+  // The public RLS policies only expose rows with status = 'published', so a
+  // visitor never sees draft editorial content.
   const { data: homepage } = await supabase
     .from("pages")
     .select(
@@ -25,7 +27,7 @@ export default async function HomePage() {
     `
     )
     .eq("slug", "homepage")
-    .eq("status", "draft")
+    .eq("status", "published")
     .single();
 
   if (!homepage) {
