@@ -7,7 +7,7 @@ VALUES (
   'Bhasha Setu - Learn & Celebrate Indigenous Languages',
   'Bridge to our languages. Bridge to our future. Learn Warli and Katkari through student-built, community-driven platform.',
   'draft',
-  'landing'
+  'homepage'
 ) ON CONFLICT (slug) DO NOTHING;
 
 -- Get homepage ID for section insertions
@@ -27,7 +27,7 @@ WITH hero_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'hero'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT hero_section.id, 'heading', 'Bridge to Our Languages. Bridge to Our Future.', 'text'
 FROM hero_section
 ON CONFLICT DO NOTHING;
@@ -38,7 +38,7 @@ WITH hero_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'hero'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT hero_section.id, 'description', 'Bhasha Setu is a student-built platform to help the world learn and celebrate the languages of the Warli and Katkari communities.', 'text'
 FROM hero_section
 ON CONFLICT DO NOTHING;
@@ -88,7 +88,7 @@ WITH wro_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'wro_project'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT wro_section.id, 'title', 'Our WRO Project (90 sec)', 'text'
 FROM wro_section
 ON CONFLICT DO NOTHING;
@@ -99,7 +99,7 @@ WITH wro_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'wro_project'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT wro_section.id, 'description', 'See how we built Bhasha Setu to document, learn, and celebrate the languages of Warli and Katkari.', 'text'
 FROM wro_section
 ON CONFLICT DO NOTHING;
@@ -110,7 +110,7 @@ WITH wro_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'wro_project'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT wro_section.id, 'cta_text', 'Watch on YouTube', 'text'
 FROM wro_section
 ON CONFLICT DO NOTHING;
@@ -143,7 +143,7 @@ WITH learn_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'learn_explore'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT learn_section.id, 'heading', 'Learn. Explore. Celebrate.', 'text'
 FROM learn_section
 ON CONFLICT DO NOTHING;
@@ -209,7 +209,7 @@ WITH voices_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'voices_inspire'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT voices_section.id, 'heading', 'Voices That Inspire', 'text'
 FROM voices_section
 ON CONFLICT DO NOTHING;
@@ -264,7 +264,7 @@ WITH chat_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'my_bhasha_setu'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT chat_section.id, 'title', 'Meet My BhashaSetu', 'text'
 FROM chat_section
 ON CONFLICT DO NOTHING;
@@ -275,7 +275,7 @@ WITH chat_section AS (
   JOIN public.pages p ON ps.page_id = p.id
   WHERE p.slug = 'homepage' AND ps.section_key = 'my_bhasha_setu'
 )
-INSERT INTO public.page_content (section_id, field_key, content, content_type)
+INSERT INTO public.page_content (section_id, field_key, content, field_type)
 SELECT chat_section.id, 'description', 'Chat with our AI assistant in simple English or your language. Ask questions • Explore stories • Record your voice', 'text'
 FROM chat_section
 ON CONFLICT DO NOTHING;
