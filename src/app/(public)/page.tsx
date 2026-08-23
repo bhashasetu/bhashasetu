@@ -3,90 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { MediaSlotImage } from "@/components/public/MediaSlotImage";
 import "./homepage.css";
 
-async function seedHomepage(supabase: any) {
-  // Insert homepage
-  const { data: page } = await supabase
-    .from("pages")
-    .insert({ slug: "homepage", title: "Bhasha Setu - Learn & Celebrate Indigenous Languages", description: "Bridge to our languages. Bridge to our future. Learn Warli and Katkari through student-built, community-driven platform.", status: "draft", page_type: "landing" })
-    .select()
-    .single();
-
-  if (!page) return null;
-
-  // Insert sections
-  const sections = [
-    { section_key: "hero", title: "Hero Section", section_type: "hero" },
-    { section_key: "wro_project", title: "WRO Project Section", section_type: "hero" },
-    { section_key: "learn_explore", title: "Learn. Explore. Celebrate.", section_type: "media_grid" },
-    { section_key: "voices_inspire", title: "Voices That Inspire", section_type: "media_grid" },
-    { section_key: "my_bhasha_setu", title: "Meet My BhashaSetu", section_type: "hero" },
-  ];
-
-  const sectionMap: Record<string, string> = {};
-  for (const section of sections) {
-    const { data: s } = await supabase
-      .from("page_sections")
-      .insert({ page_id: page.id, ...section, status: "draft" })
-      .select()
-      .single();
-    if (s) sectionMap[section.section_key] = s.id;
-  }
-
-  // Insert page content
-  await supabase.from("page_content").insert([
-    { section_id: sectionMap["hero"], field_key: "heading", content: "Bridge to Our Languages. Bridge to Our Future.", content_type: "text" },
-    { section_id: sectionMap["hero"], field_key: "description", content: "Bhasha Setu is a student-built platform to help the world learn and celebrate the languages of the Warli and Katkari communities.", content_type: "text" },
-    { section_id: sectionMap["wro_project"], field_key: "title", content: "Our WRO Project (90 sec)", content_type: "text" },
-    { section_id: sectionMap["wro_project"], field_key: "description", content: "See how we built Bhasha Setu to document, learn, and celebrate the languages of Warli and Katkari.", content_type: "text" },
-    { section_id: sectionMap["wro_project"], field_key: "cta_text", content: "Watch on YouTube", content_type: "text" },
-    { section_id: sectionMap["learn_explore"], field_key: "heading", content: "Learn. Explore. Celebrate.", content_type: "text" },
-    { section_id: sectionMap["voices_inspire"], field_key: "heading", content: "Voices That Inspire", content_type: "text" },
-    { section_id: sectionMap["my_bhasha_setu"], field_key: "title", content: "Meet My BhashaSetu", content_type: "text" },
-    { section_id: sectionMap["my_bhasha_setu"], field_key: "description", content: "Chat with our AI assistant in simple English or your language. Ask questions • Explore stories • Record your voice", content_type: "text" },
-  ]);
-
-  // Insert media slots
-  const slots = [
-    { section_id: sectionMap["hero"], slot_key: "hero_image", media_type: "image", aspect_ratio: "16:9", slot_position: 1 },
-    { section_id: sectionMap["wro_project"], slot_key: "wro_video", media_type: "video", aspect_ratio: "16:9", slot_position: 1 },
-    { section_id: sectionMap["learn_explore"], slot_key: "card_warli_image", media_type: "image", aspect_ratio: "1:1", slot_position: 1 },
-    { section_id: sectionMap["learn_explore"], slot_key: "card_katkari_image", media_type: "image", aspect_ratio: "1:1", slot_position: 2 },
-    { section_id: sectionMap["learn_explore"], slot_key: "card_play_image", media_type: "image", aspect_ratio: "1:1", slot_position: 3 },
-    { section_id: sectionMap["learn_explore"], slot_key: "card_stories_image", media_type: "image", aspect_ratio: "1:1", slot_position: 4 },
-    { section_id: sectionMap["voices_inspire"], slot_key: "testimonial_1_image", media_type: "image", aspect_ratio: "1:1", slot_position: 1 },
-    { section_id: sectionMap["voices_inspire"], slot_key: "testimonial_2_image", media_type: "image", aspect_ratio: "1:1", slot_position: 2 },
-    { section_id: sectionMap["voices_inspire"], slot_key: "testimonial_3_image", media_type: "image", aspect_ratio: "1:1", slot_position: 3 },
-    { section_id: sectionMap["my_bhasha_setu"], slot_key: "robot_image", media_type: "image", aspect_ratio: "1:1", slot_position: 1 },
-  ];
-
-  const slotMap: Record<string, string> = {};
-  for (const slot of slots) {
-    const { data: s } = await supabase
-      .from("media_slots")
-      .insert(slot)
-      .select()
-      .single();
-    if (s) slotMap[slot.slot_key] = s.id;
-  }
-
-  // Insert generation prompts
-  await supabase.from("generation_prompts").insert([
-    { slot_id: slotMap["hero_image"], provider: "manual", prompt_text: "Use approved WRO vehicle photograph asset. Real photo of the physical robot vehicle with metallic chassis, lantern-shaped top, tracks, and control panel. This is the canonical Bhasha Setu WRO project vehicle - do not generate or recreate.", model_name: "manual" },
-    { slot_id: slotMap["robot_image"], provider: "manual", prompt_text: "Use the approved canonical Bhasha Setu robot asset. The friendly robot mascot that represents the learning companion. This is the official robot character for the platform - maintain visual identity and brand consistency.", model_name: "manual" },
-    { slot_id: slotMap["card_warli_image"], provider: "fal.ai", prompt_text: "Minimalist educational illustration of Warli art and community. Simple geometric shapes and figures in warm earth tones (browns, terracottas, ochres). Hand-drawn style, culturally respectful. Square 1:1 aspect ratio. Perfect for a learning card.", model_name: "flux-pro" },
-    { slot_id: slotMap["card_katkari_image"], provider: "fal.ai", prompt_text: "Minimalist educational illustration of Katkari cultural heritage and community. Simple geometric shapes, warm palette, hand-drawn style. Culturally respectful and community-focused. Square 1:1 aspect ratio. Perfect for a learning card.", model_name: "flux-pro" },
-    { slot_id: slotMap["card_play_image"], provider: "fal.ai", prompt_text: "Minimalist illustration representing games, quizzes and interactive learning activities. Simple shapes, warm palette, playful aesthetic. Hand-drawn style. Square 1:1 aspect ratio. Perfect for a learning card.", model_name: "flux-pro" },
-    { slot_id: slotMap["card_stories_image"], provider: "fal.ai", prompt_text: "Minimalist illustration representing stories and oral tradition. Simple shapes, warm palette, narrative aesthetic. Hand-drawn style. Square 1:1 aspect ratio. Perfect for a learning card.", model_name: "flux-pro" },
-  ]);
-
-  return page;
-}
-
 export default async function HomePage() {
   const supabase = await createClient();
 
   // Fetch homepage with all sections and media
-  let { data: homepage } = await supabase
+  // The migration (0008_homepage_complete.sql) should have seeded this data
+  const { data: homepage } = await supabase
     .from("pages")
     .select(
       `
@@ -106,33 +28,6 @@ export default async function HomePage() {
     .eq("slug", "homepage")
     .eq("status", "draft")
     .single();
-
-  // If homepage doesn't exist, seed it dynamically
-  if (!homepage) {
-    await seedHomepage(supabase);
-    // Fetch again after seeding
-    const { data: seededHomepage } = await supabase
-      .from("pages")
-      .select(
-        `
-        *,
-        page_sections(
-          *,
-          page_content(*),
-          media_slots(
-            id,
-            slot_key,
-            media_type,
-            aspect_ratio
-          )
-        )
-      `
-      )
-      .eq("slug", "homepage")
-      .eq("status", "draft")
-      .single();
-    homepage = seededHomepage;
-  }
 
   if (!homepage) {
     return (
