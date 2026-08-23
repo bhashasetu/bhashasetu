@@ -29,94 +29,16 @@ export default async function HomePage() {
     .eq("status", "draft")
     .single();
 
-  // Fallback data structure for homepage (matches 0008_homepage_complete.sql)
-  const fallbackHomepage = {
-    id: "fallback",
-    slug: "homepage",
-    title: "Bhasha Setu - Learn & Celebrate Indigenous Languages",
-    description: "Bridge to our languages. Bridge to our future. Learn Warli and Katkari through student-built, community-driven platform.",
-    status: "draft",
-    page_type: "landing",
-    page_sections: [
-      {
-        id: "hero",
-        section_key: "hero",
-        title: "Hero Section",
-        section_type: "hero",
-        status: "draft",
-        page_content: [
-          { field_key: "heading", content: "Bridge to Our Languages. Bridge to Our Future.", content_type: "text" },
-          { field_key: "description", content: "Bhasha Setu is a student-built platform to help the world learn and celebrate the languages of the Warli and Katkari communities.", content_type: "text" },
-        ],
-        media_slots: [
-          { id: "hero_image", slot_key: "hero_image", media_type: "image", aspect_ratio: "16:9" },
-        ],
-      },
-      {
-        id: "wro_project",
-        section_key: "wro_project",
-        title: "WRO Project Section",
-        section_type: "hero",
-        status: "draft",
-        page_content: [
-          { field_key: "title", content: "Our WRO Project (90 sec)", content_type: "text" },
-          { field_key: "description", content: "See how we built Bhasha Setu to document, learn, and celebrate the languages of Warli and Katkari.", content_type: "text" },
-          { field_key: "cta_text", content: "Watch on YouTube", content_type: "text" },
-        ],
-        media_slots: [
-          { id: "wro_video", slot_key: "wro_video", media_type: "video", aspect_ratio: "16:9" },
-        ],
-      },
-      {
-        id: "learn_explore",
-        section_key: "learn_explore",
-        title: "Learn. Explore. Celebrate.",
-        section_type: "media_grid",
-        status: "draft",
-        page_content: [
-          { field_key: "heading", content: "Learn. Explore. Celebrate.", content_type: "text" },
-        ],
-        media_slots: [
-          { id: "card_warli", slot_key: "card_warli_image", media_type: "image", aspect_ratio: "1:1" },
-          { id: "card_katkari", slot_key: "card_katkari_image", media_type: "image", aspect_ratio: "1:1" },
-          { id: "card_play", slot_key: "card_play_image", media_type: "image", aspect_ratio: "1:1" },
-          { id: "card_stories", slot_key: "card_stories_image", media_type: "image", aspect_ratio: "1:1" },
-        ],
-      },
-      {
-        id: "voices_inspire",
-        section_key: "voices_inspire",
-        title: "Voices That Inspire",
-        section_type: "media_grid",
-        status: "draft",
-        page_content: [
-          { field_key: "heading", content: "Voices That Inspire", content_type: "text" },
-        ],
-        media_slots: [
-          { id: "test_1", slot_key: "testimonial_1_image", media_type: "image", aspect_ratio: "1:1" },
-          { id: "test_2", slot_key: "testimonial_2_image", media_type: "image", aspect_ratio: "1:1" },
-          { id: "test_3", slot_key: "testimonial_3_image", media_type: "image", aspect_ratio: "1:1" },
-        ],
-      },
-      {
-        id: "my_bhasha_setu",
-        section_key: "my_bhasha_setu",
-        title: "Meet My BhashaSetu",
-        section_type: "hero",
-        status: "draft",
-        page_content: [
-          { field_key: "title", content: "Meet My BhashaSetu", content_type: "text" },
-          { field_key: "description", content: "Chat with our AI assistant in simple English or your language. Ask questions • Explore stories • Record your voice", content_type: "text" },
-        ],
-        media_slots: [
-          { id: "robot", slot_key: "robot_image", media_type: "image", aspect_ratio: "1:1" },
-        ],
-      },
-    ],
-  };
+  if (!homepage) {
+    return (
+      <div className="homepage-error">
+        <h1>Homepage not found</h1>
+        <p>Homepage is not yet configured in the CMS.</p>
+      </div>
+    );
+  }
 
-  const pageData = homepage || fallbackHomepage;
-  const sections = pageData.page_sections || [];
+  const sections = homepage.page_sections || [];
 
   // Helper functions
   const getSection = (key: string) =>
