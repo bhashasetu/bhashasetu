@@ -55,7 +55,10 @@ SELECT hero_section.id, 'hero_image', 'image', '16:9', 1
 FROM hero_section
 ON CONFLICT (section_id, slot_key) DO NOTHING;
 
--- Hero image generation prompts
+-- Hero image generation prompt
+-- NOTE: The hero image in the reference is the REAL WRO vehicle photograph, not AI-generated
+-- This slot is for the WRO robot vehicle image - a real photograph with metallic box chassis and lantern top
+-- DO NOT AI-GENERATE: Source the approved WRO vehicle photo asset
 WITH hero_slot AS (
   SELECT ms.id FROM public.media_slots ms
   JOIN public.page_sections ps ON ms.section_id = ps.id
@@ -63,22 +66,9 @@ WITH hero_slot AS (
   WHERE p.slug = 'homepage' AND ms.slot_key = 'hero_image'
 )
 INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
-SELECT hero_slot.id, 'openai',
-  'A sophisticated 3D render of the Bhasha Setu robot mascot - a friendly, art deco-inspired robot with a lantern-like head featuring warm lighting. The robot should be shown in a professional setting, perhaps in a classroom or community space. Include visual elements that hint at Warli and Katkari culture. Professional, modern, educational aesthetic. 16:9 aspect ratio.',
-  'dall-e-3'
-FROM hero_slot
-ON CONFLICT DO NOTHING;
-
-WITH hero_slot AS (
-  SELECT ms.id FROM public.media_slots ms
-  JOIN public.page_sections ps ON ms.section_id = ps.id
-  JOIN public.pages p ON ps.page_id = p.id
-  WHERE p.slug = 'homepage' AND ms.slot_key = 'hero_image'
-)
-INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
-SELECT hero_slot.id, 'fal.ai',
-  'A sophisticated 3D render of the Bhasha Setu robot mascot - a friendly, art deco-inspired robot with a lantern-like head featuring warm lighting. The robot should be shown in a professional setting, perhaps in a classroom or community space. Professional, modern, educational aesthetic.',
-  'flux-pro'
+SELECT hero_slot.id, 'manual',
+  'Use approved WRO vehicle photograph asset. Real photo of the physical robot vehicle with metallic chassis, lantern-shaped top, tracks, and control panel. This is the canonical Bhasha Setu WRO project vehicle - do not generate or recreate.',
+  'manual'
 FROM hero_slot
 ON CONFLICT DO NOTHING;
 
@@ -302,7 +292,9 @@ SELECT chat_section.id, 'robot_image', 'image', '1:1', 1
 FROM chat_section
 ON CONFLICT (section_id, slot_key) DO NOTHING;
 
--- Robot image generation prompts
+-- Robot image generation prompt
+-- NOTE: Use the approved canonical Bhasha Setu robot asset - the official robot character for the platform
+-- Maintain visual identity and brand consistency. Do not generate or recreate.
 WITH robot_slot AS (
   SELECT ms.id FROM public.media_slots ms
   JOIN public.page_sections ps ON ms.section_id = ps.id
@@ -310,23 +302,63 @@ WITH robot_slot AS (
   WHERE p.slug = 'homepage' AND ms.slot_key = 'robot_image'
 )
 INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
-SELECT robot_slot.id, 'openai',
-  'A cute, friendly AI assistant robot mascot in art deco style with a smiling face, warm welcoming expression. The robot should have a lantern-like or decorative head design with warm glowing elements. Show the robot against a clean, light background. Perfect for a language learning chatbot companion. Square 1:1 aspect ratio.',
-  'dall-e-3'
+SELECT robot_slot.id, 'manual',
+  'Use the approved canonical Bhasha Setu robot asset. The friendly robot mascot that represents the learning companion. This is the official robot character for the platform - maintain visual identity and brand consistency.',
+  'manual'
 FROM robot_slot
 ON CONFLICT DO NOTHING;
 
-WITH robot_slot AS (
+-- Generation prompts for learn card images
+WITH warli_slot AS (
   SELECT ms.id FROM public.media_slots ms
   JOIN public.page_sections ps ON ms.section_id = ps.id
   JOIN public.pages p ON ps.page_id = p.id
-  WHERE p.slug = 'homepage' AND ms.slot_key = 'robot_image'
+  WHERE p.slug = 'homepage' AND ms.slot_key = 'card_warli_image'
 )
 INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
-SELECT robot_slot.id, 'fal.ai',
-  'A cute, friendly AI assistant robot mascot in art deco style with a smiling face, warm welcoming expression. The robot should have a lantern-like or decorative head design with warm glowing elements. Show the robot against a clean, light background.',
+SELECT warli_slot.id, 'fal.ai',
+  'Minimalist educational illustration of Warli art and community. Simple geometric shapes and figures in warm earth tones (browns, terracottas, ochres). Hand-drawn style, culturally respectful. Square 1:1 aspect ratio. Perfect for a learning card.',
   'flux-pro'
-FROM robot_slot
+FROM warli_slot
+ON CONFLICT DO NOTHING;
+
+WITH katkari_slot AS (
+  SELECT ms.id FROM public.media_slots ms
+  JOIN public.page_sections ps ON ms.section_id = ps.id
+  JOIN public.pages p ON ps.page_id = p.id
+  WHERE p.slug = 'homepage' AND ms.slot_key = 'card_katkari_image'
+)
+INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
+SELECT katkari_slot.id, 'fal.ai',
+  'Minimalist educational illustration of Katkari cultural heritage and community. Simple geometric shapes, warm palette, hand-drawn style. Culturally respectful and community-focused. Square 1:1 aspect ratio. Perfect for a learning card.',
+  'flux-pro'
+FROM katkari_slot
+ON CONFLICT DO NOTHING;
+
+WITH play_slot AS (
+  SELECT ms.id FROM public.media_slots ms
+  JOIN public.page_sections ps ON ms.section_id = ps.id
+  JOIN public.pages p ON ps.page_id = p.id
+  WHERE p.slug = 'homepage' AND ms.slot_key = 'card_play_image'
+)
+INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
+SELECT play_slot.id, 'fal.ai',
+  'Minimalist illustration representing games, quizzes and interactive learning activities. Simple shapes, warm palette, playful aesthetic. Hand-drawn style. Square 1:1 aspect ratio. Perfect for a learning card.',
+  'flux-pro'
+FROM play_slot
+ON CONFLICT DO NOTHING;
+
+WITH stories_slot AS (
+  SELECT ms.id FROM public.media_slots ms
+  JOIN public.page_sections ps ON ms.section_id = ps.id
+  JOIN public.pages p ON ps.page_id = p.id
+  WHERE p.slug = 'homepage' AND ms.slot_key = 'card_stories_image'
+)
+INSERT INTO public.generation_prompts (slot_id, provider, prompt_text, model_name)
+SELECT stories_slot.id, 'fal.ai',
+  'Minimalist illustration representing stories and oral tradition. Simple shapes, warm palette, narrative aesthetic. Hand-drawn style. Square 1:1 aspect ratio. Perfect for a learning card.',
+  'flux-pro'
+FROM stories_slot
 ON CONFLICT DO NOTHING;
 
 -- Summary
