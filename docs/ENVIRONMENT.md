@@ -14,9 +14,9 @@ Environment Variables):
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (client + server) | Supabase anon/publishable key, subject to RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only | Bypasses RLS. Reserved for exceptional server-side operations only (see `src/lib/supabase/admin.ts`). Never exposed to the client. |
 
-Future phases may add (documented here when introduced, not before):
-- `OPENAI_API_KEY` (server-only, My BhashaSetu chat)
-- `FAL_KEY` (server-only, AI image generation)
+Provider integrations (Phase 2):
+- `OPENAI_API_KEY` (server-only, image generation via DALL-E 3)
+- `FAL_AI_KEY` (server-only, image generation via FLUX)
 
 ## Supabase (Edge Function secrets, when applicable)
 
