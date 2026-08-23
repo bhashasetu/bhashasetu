@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import "./login.css";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -34,38 +35,56 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main>
-      <h1>Back Office Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loading}
-          />
+    <main className="login-container">
+      <div className="login-box">
+        <div className="login-header">
+          <div className="login-logo">🌉</div>
+          <h1>BHASHA SETU</h1>
+          <p className="login-tagline">Back Office</p>
         </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-          />
+
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="username"
+              placeholder="your@email.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              className="form-input"
+            />
+          </div>
+
+          {error && <div className="error-message" role="alert">{error}</div>}
+
+          <button type="submit" disabled={loading} className="submit-button">
+            {loading ? "Signing in…" : "Sign In"}
+          </button>
+        </form>
+
+        <div className="login-footer">
+          <p>Bridging Voices. Preserving Heritage.</p>
         </div>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+      </div>
     </main>
   );
 }
