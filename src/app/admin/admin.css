@@ -189,6 +189,10 @@
   /* Navy fills the sidebar column for the whole page; the sticky sidebar
      itself is only one viewport tall. */
   background: var(--color-primary);
+  /* The Back Office is a fixed light design system. Without this, text here
+     inherits body's --foreground, which globals.css flips to near-white
+     under prefers-color-scheme: dark — unreadable on this light background. */
+  color: var(--color-text-dark);
 }
 
 /* --- Sidebar --- */
