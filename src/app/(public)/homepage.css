@@ -660,3 +660,350 @@
     width: 84px;
   }
 }
+
+/* ============================================================
+   SURFACE SWITCHING
+   MOBILE-05 is a distinct composition, so the two surfaces are
+   separate trees rather than one reflowing layout.
+   ============================================================ */
+.mhome { display: none; }
+
+@media (max-width: 768px) {
+  .surface-desktop { display: none; }
+  .mhome { display: block; background: var(--color-bg-white); }
+}
+
+.accent-text { color: var(--color-accent); }
+
+/* ===== MOBILE HOME (MOBILE-05-LanguageSelection.PNG) ===== */
+.mhome-hero {
+  position: relative;
+  padding: var(--spacing-md) var(--spacing-md) 0;
+  background: linear-gradient(135deg, #FDFBF7 0%, #F7F3EC 100%);
+}
+
+.mhome-hero__greeting {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 0 0 4px;
+}
+
+.mhome-hero__heading {
+  font-family: var(--font-heading);
+  font-size: 1.55rem;
+  line-height: 1.18;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.mhome-hero__desc {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text-dark);
+  margin: 0;
+  padding-bottom: var(--spacing-md);
+}
+
+/* Copy keeps clear of the vehicle photo rather than running under it. */
+.mhome-hero__copy {
+  position: relative;
+  z-index: 1;
+  max-width: 60%;
+}
+
+/* The vehicle sits to the right of the copy and bleeds off the edge. */
+.mhome-hero__media {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 44%;
+  max-width: 240px;
+}
+
+/* --- Language chooser --- */
+.mhome-langs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+}
+
+.mhome-lang {
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  border: 1px solid;
+}
+
+.mhome-lang--warli { background: #F1F6F1; border-color: #DCE8DC; }
+.mhome-lang--katkari { background: #EFF3F9; border-color: #D8E2EF; }
+
+.mhome-lang__art { width: 56px; margin-bottom: var(--spacing-sm); }
+
+.mhome-lang h2 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.mhome-lang--warli h2,
+.mhome-lang--warli .mhome-lang__link { color: #2D7D4A; }
+
+.mhome-lang--katkari h2,
+.mhome-lang--katkari .mhome-lang__link { color: var(--color-primary); }
+
+.mhome-lang p {
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  color: var(--color-text-dark);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.mhome-lang__link {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* --- Today's Word --- */
+.mhome-word {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38%;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: 0 var(--spacing-md) var(--spacing-md);
+  padding: var(--spacing-md);
+  background: #FDF4E7;
+  border: 1px solid #F2E1C6;
+  border-radius: var(--radius-md);
+}
+
+.mhome-word__label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: #C67C1E;
+  margin: 0 0 4px;
+}
+
+.mhome-word__native {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 4px;
+}
+
+.mhome-word__meanings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.mhome-word__hindi { color: #2D7D4A; font-weight: 700; }
+
+/* --- WRO project --- */
+.mhome-wro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 45%;
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin: 0 var(--spacing-md) var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.mhome-wro h2 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 4px;
+}
+
+.mhome-wro p {
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  margin: 0 0 var(--spacing-sm);
+}
+
+.mhome-wro__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+.mhome-wro__video,
+.mhome-story__thumb {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.mhome-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  padding-left: 3px;
+  pointer-events: none;
+}
+
+.mhome-play--sm { width: 30px; height: 30px; font-size: 10px; }
+
+/* --- My BhashaSetu --- */
+.mhome-chat {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin: 0 var(--spacing-md) var(--spacing-md);
+  padding: var(--spacing-md);
+  background: #F1F6F2;
+  border: 1px solid var(--color-success-light);
+  border-radius: var(--radius-md);
+}
+
+.mhome-chat h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: #2D7D4A;
+  margin: 0 0 4px;
+}
+
+.mhome-chat__badge {
+  background: #2D7D4A;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.mhome-chat p {
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.mhome-chat__cta {
+  grid-column: 1 / -1;
+  justify-self: start;
+  background: var(--color-success);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  padding: 9px 20px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+/* --- Stories & Voices --- */
+.mhome-stories { padding: 0 var(--spacing-md) var(--spacing-md); }
+
+.mhome-stories__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.mhome-stories__head h2 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.mhome-stories__all {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+/* Horizontal rail, as the reference shows. */
+.mhome-stories__row {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 46%;
+  gap: var(--spacing-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mhome-stories__row::-webkit-scrollbar { display: none; }
+
+.mhome-story__title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 6px 0 2px;
+}
+
+.mhome-story__lang {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+.mhome-story__dur {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* --- Follow us --- */
+.mhome-follow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md) var(--spacing-lg);
+}
+
+.mhome-follow h2 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MediaSlotImage } from "@/components/public/MediaSlotImage";
+import { MobileHome } from "@/components/public/MobileHome";
+import { renderAccented } from "@/lib/content/accent";
 import "./homepage.css";
 
 /**
@@ -122,7 +124,12 @@ export default async function HomePage() {
   const chatSection = getSection("my_bhasha_setu");
 
   return (
-    <div className="homepage">
+    <>
+      {/* MOBILE-05 is a distinct composition, not a reflow of the desktop
+          page, so the two surfaces are separate trees switched by breakpoint. */}
+      <MobileHome sections={sections} />
+
+      <div className="homepage surface-desktop">
       {/* HERO SECTION */}
       {heroSection && (
         <section className="hero-section">
@@ -134,7 +141,7 @@ export default async function HomePage() {
                 <span aria-hidden="true">✓</span> Verified Learning Content
               </div>
               <h1 className="hero-heading">
-                {getContent(heroSection, "heading")}
+                {renderAccented(getContent(heroSection, "heading"))}
               </h1>
               <p className="hero-description">
                 {getContent(heroSection, "description")}
@@ -349,6 +356,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

@@ -176,3 +176,381 @@
     font-size: 40px;
   }
 }
+
+/* ============================================================
+   BACK OFFICE SHELL  (ADMIN-01-Dashboard.PNG)
+   Desktop-only for V1 per CLAUDE.md section 13.
+   ============================================================ */
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+  /* Navy fills the sidebar column for the whole page; the sticky sidebar
+     itself is only one viewport tall. */
+  background: var(--color-primary);
+}
+
+/* --- Sidebar --- */
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-primary);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.admin-brand {
+  padding: var(--spacing-lg) var(--spacing-md);
+  background: #fff;
+  text-align: center;
+}
+
+.admin-brand__name {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--color-primary);
+}
+
+.admin-brand__tagline {
+  font-size: 10px;
+  color: var(--color-text-light);
+  margin-top: 2px;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-md) 0;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.admin-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px var(--spacing-md);
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: background 150ms, color 150ms;
+}
+
+.admin-nav__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.admin-nav__link.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  border-left-color: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.admin-sidebar__foot {
+  padding: var(--spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-visit {
+  display: block;
+  text-align: center;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-md);
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-visit:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* --- Top bar --- */
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--color-bg-light);
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: #fff;
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.admin-topbar__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.admin-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-user__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.admin-user__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-user__role {
+  font-size: 11px;
+  color: var(--color-text-light);
+}
+
+.admin-content {
+  padding: var(--spacing-lg);
+  min-width: 0;
+}
+
+/* --- Shared admin primitives --- */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.admin-btn--primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.admin-btn--primary:hover { filter: brightness(0.95); }
+
+.admin-btn--ghost {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-dark);
+}
+
+.admin-btn--ghost:hover { background: var(--color-bg-light); }
+
+.admin-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.admin-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.admin-page-intro {
+  color: var(--color-text-light);
+  font-size: 14px;
+  margin: 4px 0 var(--spacing-lg);
+}
+
+/* ============================================================
+   HOMEPAGE CONTENT MODULE
+   ============================================================ */
+
+.hp-editor__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.hp-editor__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.hp-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.hp-section { margin-bottom: var(--spacing-lg); }
+
+.hp-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.hp-section__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.hp-section__tags {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.hp-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-text-light);
+  background: var(--color-bg-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.hp-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.hp-field { display: flex; flex-direction: column; gap: 5px; }
+
+.hp-field__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.hp-field input,
+.hp-field textarea {
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-text-dark);
+  resize: vertical;
+}
+
+.hp-field input:focus,
+.hp-field textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+
+.hp-field__key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-text-light);
+}
+
+.hp-slots { margin-top: var(--spacing-lg); }
+
+.hp-slots__title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-light);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-light);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.hp-slots__action { text-align: right; }
+
+.admin-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.admin-pill--published { background: #E6F4EA; color: #1E7A3C; }
+.admin-pill--draft     { background: #FDF0E3; color: #B3781A; }
+.admin-pill--archived  { background: #EEE; color: #666; }
+.admin-pill--surface-desktop { background: #E8EFF8; color: #1B4F8A; }
+.admin-pill--surface-mobile  { background: #F3E9F8; color: #6B3E8A; }
+.admin-pill--surface-both    { background: #E6F4EA; color: #1E7A3C; }
+
+.hp-msg {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  margin-bottom: var(--spacing-md);
+}
+
+.hp-msg--ok    { background: #E6F4EA; color: #1E7A3C; }
+.hp-msg--error { background: #FDECEA; color: #B3261E; }

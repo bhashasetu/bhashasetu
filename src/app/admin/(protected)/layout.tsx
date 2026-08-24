@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 /**
  * Server-side auth guard for every page under admin/(protected).
@@ -34,5 +35,9 @@ export default async function ProtectedAdminLayout({
     redirect("/admin/login");
   }
 
-  return <>{children}</>;
+  return (
+    <AdminShell title="Bhasha Setu Admin" email={user.email}>
+      {children}
+    </AdminShell>
+  );
 }

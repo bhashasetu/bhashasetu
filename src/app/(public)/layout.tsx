@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { SocialLinks } from "@/components/public/SocialLinks";
+import { LanguageIcon } from "@/components/public/LanguageIcon";
+import { MobileTabBar } from "@/components/public/MobileTabBar";
 import "./public.css";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -33,6 +35,15 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               <option>English</option>
               <option>हिंदी</option>
             </select>
+            {/* MOBILE-05 shows a bell here; the slot carries the language
+                control instead, since notifications have no behaviour yet. */}
+            <Link
+              href="/languages"
+              className="header-language-icon"
+              aria-label="Choose language"
+            >
+              <LanguageIcon size={22} />
+            </Link>
           </div>
         </div>
       </header>
@@ -40,6 +51,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <main className="public-main">
         {children}
       </main>
+
+      <MobileTabBar />
 
       <footer className="public-footer">
         <div className="footer-container">
