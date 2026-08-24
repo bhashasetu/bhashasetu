@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SocialLinks } from "@/components/public/SocialLinks";
 import "./public.css";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +8,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <header className="public-header">
         <div className="header-container">
           <Link href="/" className="logo">
-            <span className="logo-icon">🌉</span>
+            {/* The bridge logo is a CMS-managed asset. Until one is
+                published the wordmark stands alone - never a stand-in mark. */}
             <div className="logo-text">
               <div className="logo-title">BHASHA SETU</div>
               <div className="logo-subtitle">Bridging Voices. Preserving Heritage.</div>
@@ -26,13 +28,11 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </nav>
 
           <div className="header-right">
+            <SocialLinks className="header-social" size={22} />
             <select className="language-select" aria-label="Language">
               <option>English</option>
               <option>हिंदी</option>
             </select>
-            <button className="user-button" aria-label="User account">
-              👤
-            </button>
           </div>
         </div>
       </header>
@@ -45,7 +45,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="footer-container">
           <div className="footer-header">
             <Link href="/" className="footer-logo">
-              <span className="logo-icon">🌉</span>
               <div>
                 <div className="logo-title">BHASHA SETU</div>
                 <div className="logo-subtitle">Bridging Voices. Preserving Heritage.</div>
@@ -88,11 +87,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             </div>
             <div className="footer-col">
               <h4>Follow Us</h4>
-              <div className="social-links">
-                <a href="https://facebook.com/bhashasetu" target="_blank" rel="noopener noreferrer" aria-label="Facebook">f</a>
-                <a href="https://instagram.com/bhashasetu" target="_blank" rel="noopener noreferrer" aria-label="Instagram">📷</a>
-                <a href="https://youtube.com/bhashasetu" target="_blank" rel="noopener noreferrer" aria-label="YouTube">▶</a>
-              </div>
+              <SocialLinks size={22} />
             </div>
           </div>
         </div>

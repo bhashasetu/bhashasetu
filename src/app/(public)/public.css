@@ -20,7 +20,9 @@
   --spacing-2xl: 48px;
   --spacing-3xl: 64px;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* next/font supplies --font-display (Poppins) and --font-body (Inter). */
+  --font-heading: var(--font-display), "Poppins", var(--font-body), sans-serif;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
   --font-size-base: 16px;
@@ -104,6 +106,7 @@ button {
 }
 
 .logo-title {
+  font-family: var(--font-heading);
   font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--color-primary);
@@ -179,10 +182,10 @@ button {
 .footer-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: var(--spacing-md) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
   align-items: start;
 }
 
@@ -211,9 +214,10 @@ button {
 }
 
 .footer-col h4 {
+  font-family: var(--font-heading);
   font-size: var(--font-size-sm);
   font-weight: 700;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 6px;
 }
 
 .footer-col ul {
@@ -221,7 +225,7 @@ button {
 }
 
 .footer-col li {
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .footer-col a {
@@ -243,28 +247,42 @@ button {
   gap: var(--spacing-md);
 }
 
-.social-links a {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  display: flex;
+.social-link {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-bg-white);
-  font-weight: bold;
-  transition: background 200ms;
+  line-height: 0;
+  transition: opacity 200ms, transform 200ms;
 }
 
-.social-links a:hover {
-  background: rgba(255, 255, 255, 0.2);
+/* Brand colours, as the reference header and footer show them. */
+.social-link--brand {
+  color: var(--brand);
+}
+
+.social-link--mono {
+  color: currentColor;
+}
+
+.social-link:hover {
+  opacity: 0.8;
   text-decoration: none;
+}
+
+.social-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.header-social {
+  gap: var(--spacing-sm);
 }
 
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin: 0 var(--spacing-md);
-  padding: 6px 0;
+  padding: 5px 0;
   text-align: center;
   color: rgba(255, 255, 255, 0.7);
   font-size: var(--font-size-xs);
@@ -291,16 +309,34 @@ button {
     gap: var(--spacing-md);
   }
 
+  /* Keep the nav on one line and let it scroll, rather than wrapping into a
+     jumbled block. No collapsed/hamburger pattern is introduced here. */
   .primary-nav {
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
     order: 3;
     width: 100%;
+    flex-wrap: nowrap;
+    gap: var(--spacing-lg);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .primary-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .primary-nav a {
+    white-space: nowrap;
+  }
+
+  .header-right {
+    gap: var(--spacing-md);
+    margin-left: auto;
   }
 
   .footer-container {
     grid-template-columns: 1fr;
-    gap: var(--spacing-2xl);
+    gap: var(--spacing-md);
   }
 
   .footer-columns {

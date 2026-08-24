@@ -321,23 +321,31 @@ export default async function HomePage() {
         <div className="values-container">
           <div className="value-box">
             <div className="value-icon">👥</div>
-            <h4>Student-Built</h4>
-            <p>Designed and developed by young innovators.</p>
+            <div className="value-box__body">
+              <h4>Student-Built</h4>
+              <p>Designed and developed by young innovators.</p>
+            </div>
           </div>
           <div className="value-box">
             <div className="value-icon">🤝</div>
-            <h4>Community-Driven</h4>
-            <p>Created with elders, educators and community members.</p>
+            <div className="value-box__body">
+              <h4>Community-Driven</h4>
+              <p>Created with elders, educators and community members.</p>
+            </div>
           </div>
           <div className="value-box">
             <div className="value-icon">✓</div>
-            <h4>Verified Content</h4>
-            <p>All learning content is reviewed and community-verified.</p>
+            <div className="value-box__body">
+              <h4>Verified Content</h4>
+              <p>All learning content is reviewed and community-verified.</p>
+            </div>
           </div>
           <div className="value-box">
             <div className="value-icon">🌱</div>
-            <h4>Preserving Heritage</h4>
-            <p>Documenting today for generations to come.</p>
+            <div className="value-box__body">
+              <h4>Preserving Heritage</h4>
+              <p>Documenting today for generations to come.</p>
+            </div>
           </div>
         </div>
       </section>
