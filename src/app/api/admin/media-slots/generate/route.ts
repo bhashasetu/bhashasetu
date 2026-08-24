@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { getImageProvider } from "@/lib/media/image-providers";
+import { resolveConfiguredProvider } from "@/lib/media/image-providers";
+import { conformImageToSlot } from "@/lib/media/conform-image";
 
 export async function POST(request: Request) {
   const adminCheck = await requireAdmin();
@@ -43,25 +44,43 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Get the image provider
-    const imageProvider = getImageProvider(provider);
+    // Use the requested provider when it has a key, otherwise whichever
+    // provider this deployment actually has configured.
+    const imageProvider = resolveConfiguredProvider(provider);
 
-    // Generate image
-    const { imageUrl, mimeType, modelName } = await imageProvider.generateImage(prompt.prompt_text);
+    const { imageUrl, mimeType, modelName } = await imageProvider.generateImage(
+      prompt.prompt_text
+    );
 
     // Download image
     const imageResponse = await fetch(imageUrl);
     if (!imageResponse.ok) {
       throw new Error("Failed to download generated image");
     }
-    const imageBuffer = await imageResponse.arrayBuffer();
+    const rawBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
-    // Upload to Supabase Storage
-    const filename = `generated-${Date.now()}.png`;
+    // Providers return their own fixed sizes (DALL-E squares, for one), so fit
+    // the result to the ratio this slot expects before storing it.
+    const { data: slotRow } = await supabase
+      .from("media_slots")
+      .select("aspect_ratio")
+      .eq("id", slotId)
+      .single();
+
+    const conformed = await conformImageToSlot(
+      rawBuffer,
+      slotRow?.aspect_ratio ?? null,
+      mimeType
+    ).catch(() => null);
+
+    const imageBuffer = conformed?.buffer ?? rawBuffer;
+    const storedMime = conformed?.mimeType ?? mimeType;
+
+    const filename = `generated-${Date.now()}.${storedMime === "image/png" ? "png" : "jpg"}`;
     const { error: uploadError } = await supabase.storage
       .from("media-images")
       .upload(`generated/${filename}`, imageBuffer, {
-        contentType: mimeType,
+        contentType: storedMime,
       });
 
     if (uploadError) {
@@ -78,8 +97,10 @@ export async function POST(request: Request) {
       .from("media_assets")
       .insert({
         filename,
-        mime_type: mimeType,
+        mime_type: storedMime,
         file_size: imageBuffer.byteLength,
+        width: conformed?.width || null,
+        height: conformed?.height || null,
         storage_bucket: "media-images",
         storage_path: `generated/${filename}`,
         media_type: "image",
@@ -107,6 +128,10 @@ export async function POST(request: Request) {
         generation_status: "completed",
         media_asset_id: mediaAsset.id,
         approval_status: "draft",
+        // Record the provider that actually ran, which may differ from the
+        // preset when the preset's provider has no key here.
+        provider: imageProvider.name,
+        model_name: modelName ?? prompt.model_name,
       })
       .eq("id", variant.id);
 

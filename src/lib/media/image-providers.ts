@@ -122,6 +122,26 @@ export function getImageProvider(providerName: string): ImageProvider {
   return provider;
 }
 
+/**
+ * Resolve the provider actually used for a generation.
+ *
+ * A slot's preset may name a provider that this deployment has no key for
+ * (the Learn card presets ask for fal.ai, but a deployment may only have
+ * OPENAI_API_KEY). Rather than failing, fall back to any configured provider
+ * so the editor can still generate; the caller records which one ran.
+ */
+export function resolveConfiguredProvider(preferred: string): ImageProvider {
+  const wanted = providers[preferred as keyof typeof providers];
+  if (wanted?.isConfigured()) return wanted;
+
+  const fallback = Object.values(providers).find((p) => p.isConfigured());
+  if (fallback) return fallback;
+
+  throw new Error(
+    "No image generation provider is configured. Set OPENAI_API_KEY or FAL_AI_KEY."
+  );
+}
+
 export function getAvailableProviders(): Array<{ name: string; configured: boolean }> {
   return Object.entries(providers)
     .filter(([name]) => name !== "flux") // Don't duplicate flux alias

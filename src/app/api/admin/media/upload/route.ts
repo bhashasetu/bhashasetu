@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { adminCheckFailureResponse, badRequest, serverError } from "@/lib/api/respond";
 import { validateMediaUpload } from "@/lib/media/validate-upload";
 import { bucketForMediaType, buildStoragePath } from "@/lib/media/storage-paths";
+import { conformImageToSlot } from "@/lib/media/conform-image";
 
 export async function POST(request: Request) {
   const check = await requireAdmin();
@@ -23,12 +24,60 @@ export async function POST(request: Request) {
 
   const { mediaType } = validation;
   const bucket = bucketForMediaType(mediaType);
-  const storagePath = buildStoragePath(mediaType, file.name);
 
-  const arrayBuffer = await file.arrayBuffer();
+  // When the upload targets a media slot, look the slot up first so the image
+  // can be fitted to the ratio that slot expects.
+  const slotIdRaw = formData.get("slot_id");
+  const slotId = typeof slotIdRaw === "string" && slotIdRaw ? slotIdRaw : null;
+
+  let slot: { id: string; aspect_ratio: string | null; media_type: string } | null =
+    null;
+
+  if (slotId) {
+    const { data, error } = await check.supabase
+      .from("media_slots")
+      .select("id, aspect_ratio, media_type")
+      .eq("id", slotId)
+      .single();
+
+    if (error || !data) return badRequest("Unknown media slot");
+    slot = data;
+  }
+
+  let body: Buffer = Buffer.from(await file.arrayBuffer());
+  let contentType = file.type;
+  let width: number | null = null;
+  let height: number | null = null;
+  let adjusted = false;
+
+  // Fit the image to the slot rather than making an editor prepare it by hand.
+  if (mediaType === "image") {
+    try {
+      const conformed = await conformImageToSlot(
+        body,
+        slot?.aspect_ratio ?? null,
+        file.type
+      );
+      body = conformed.buffer;
+      contentType = conformed.mimeType;
+      width = conformed.width || null;
+      height = conformed.height || null;
+      adjusted = conformed.adjusted;
+    } catch {
+      // A source we cannot decode is still worth storing as-is; the editor
+      // can replace it. Better than rejecting the upload outright.
+    }
+  }
+
+  const extension = contentType === "image/png" ? "png" : contentType === "image/jpeg" ? "jpg" : null;
+  const storagePath = buildStoragePath(
+    mediaType,
+    extension ? file.name.replace(/\.[^.]+$/, `.${extension}`) : file.name
+  );
+
   const { error: uploadError } = await check.supabase.storage
     .from(bucket)
-    .upload(storagePath, arrayBuffer, { contentType: file.type });
+    .upload(storagePath, body, { contentType });
 
   if (uploadError) {
     return serverError(`Storage upload failed: ${uploadError.message}`);
@@ -44,8 +93,10 @@ export async function POST(request: Request) {
     .from("media_assets")
     .insert({
       filename: file.name,
-      mime_type: file.type,
-      file_size: file.size,
+      mime_type: contentType,
+      file_size: body.byteLength,
+      width,
+      height,
       storage_bucket: bucket,
       storage_path: storagePath,
       media_type: mediaType,
@@ -76,5 +127,40 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ data: mediaAsset }, { status: 201 });
+  // Attach the asset to its slot. Without this the upload succeeds but the
+  // slot stays empty, which is what made "upload" look broken.
+  if (slot) {
+    const { error: assignError } = await check.supabase
+      .from("slot_media_assignments")
+      .insert({
+        slot_id: slot.id,
+        media_asset_id: mediaAsset.id,
+        status: "published",
+        created_by: check.user.id,
+      });
+
+    if (assignError) {
+      return serverError(
+        `Media uploaded but could not be attached to the slot: ${assignError.message}`
+      );
+    }
+
+    // A slot asset must be published for the public page to read it
+    // (public_read_published_media gates on status).
+    const { error: publishError } = await check.supabase
+      .from("media_assets")
+      .update({ status: "published", published_at: new Date().toISOString() })
+      .eq("id", mediaAsset.id);
+
+    if (publishError) {
+      return serverError(
+        `Media attached but could not be published: ${publishError.message}`
+      );
+    }
+  }
+
+  return NextResponse.json(
+    { data: { ...mediaAsset, width, height }, adjusted },
+    { status: 201 }
+  );
 }

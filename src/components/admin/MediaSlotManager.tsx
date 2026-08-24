@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChangeEvent, FormEvent } from "react";
+import { useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
 
 type MediaSlot = {
   id: string;
@@ -33,6 +33,29 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [promptText, setPromptText] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Key presence can only be known on the server; a client component reading
+  // process.env.OPENAI_API_KEY always sees undefined.
+  const [configured, setConfigured] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/image-providers")
+      .then((r) => (r.ok ? r.json() : { providers: [] }))
+      .then((b) => {
+        if (cancelled) return;
+        setConfigured(
+          (b.providers ?? [])
+            .filter((p: { configured: boolean }) => p.configured)
+            .map((p: { name: string }) => p.name)
+        );
+      })
+      .catch(() => !cancelled && setConfigured([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleGenerateImage = async (
     provider: "openai" | "fal.ai",
@@ -73,6 +96,9 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
     if (!file) return;
 
     setUploadingFile(true);
+    setError(null);
+    setNotice(null);
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("media_type", slot.media_type);
@@ -83,17 +109,26 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
         method: "POST",
         body: formData,
       });
+      const body = await res.json().catch(() => ({}));
 
-      if (res.ok) {
-        onUpdate();
-      } else {
-        alert("Upload failed");
+      if (!res.ok) {
+        // Surface the server's reason instead of a bare "Upload failed".
+        setError(body.error ?? `Upload failed (${res.status})`);
+        return;
       }
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Upload failed");
+
+      setNotice(
+        body.adjusted
+          ? `Uploaded and cropped to ${slot.aspect_ratio ?? "the slot ratio"}.`
+          : "Uploaded and attached to this slot."
+      );
+      onUpdate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploadingFile(false);
+      // Allow re-selecting the same file after a failure.
+      e.target.value = "";
     }
   };
 
@@ -150,7 +185,15 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
             disabled={uploadingFile}
           />
         </label>
-        {uploadingFile && <span>Uploading...</span>}
+        {uploadingFile && <span> Uploading…</span>}
+        {slot.aspect_ratio && (
+          <p style={{ fontSize: 12, color: "#666", margin: "4px 0 0" }}>
+            Any size is fine — the image is centre-cropped to{" "}
+            {slot.aspect_ratio} automatically.
+          </p>
+        )}
+        {notice && <p style={{ color: "#1E7A3C", fontSize: 13 }}>{notice}</p>}
+        {error && <p style={{ color: "#B3261E", fontSize: 13 }}>{error}</p>}
       </div>
 
       {/* Generation Prompts */}
@@ -158,11 +201,15 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
         <div style={{ marginTop: "15px" }}>
           <h5>Generate Image</h5>
 
-          {/* Check if API keys are configured */}
-          {!process.env.OPENAI_API_KEY && !process.env.FAL_AI_KEY && (
-            <p style={{ color: "orange" }}>
-              ⚠️ No image generation providers configured. Configure OPENAI_API_KEY
-              or FAL_AI_KEY in Vercel environment variables to enable image generation.
+          {configured !== null && configured.length === 0 && (
+            <p style={{ color: "#B3781A" }}>
+              No image generation provider is configured. Set OPENAI_API_KEY or
+              FAL_AI_KEY in the Vercel project settings.
+            </p>
+          )}
+          {configured !== null && configured.length > 0 && (
+            <p style={{ color: "#1E7A3C", fontSize: 13 }}>
+              Configured: {configured.join(", ")}
             </p>
           )}
 

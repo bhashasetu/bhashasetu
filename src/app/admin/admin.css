@@ -397,31 +397,83 @@
 
 /* ============================================================
    HOMEPAGE CONTENT MODULE
+   Every field uses one label column so rows line up down the page,
+   and the slot tables share a fixed column grid so they align too.
    ============================================================ */
 
-.hp-editor__bar {
+.hp-editor { max-width: 1080px; }
+
+.hp-bar {
+  position: sticky;
+  top: 62px;
+  z-index: 4;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
-  flex-wrap: wrap;
+  padding: var(--spacing-md) 0;
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-light);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.hp-editor__title {
-  font-size: 20px;
+.hp-bar__title {
+  font-size: 18px;
   font-weight: 700;
   color: var(--color-primary);
   margin: 0;
 }
 
-.hp-editor__actions {
+.hp-bar__sub {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 12px;
+  color: var(--color-text-light);
+  margin: 3px 0 0;
+}
+
+.hp-bar__actions {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
 }
 
-.hp-section { margin-bottom: var(--spacing-lg); }
+.hp-bar__dirty {
+  font-size: 12px;
+  font-weight: 600;
+  color: #B3781A;
+}
+
+/* --- Jump list --- */
+.hp-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.hp-jump a {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.hp-jump a:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* --- Section card --- */
+.hp-section {
+  margin-bottom: var(--spacing-md);
+  scroll-margin-top: 130px;
+}
 
 .hp-section__head {
   display: flex;
@@ -435,45 +487,40 @@
 
 .hp-section__head h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-primary);
 }
 
-.hp-section__tags {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.hp-key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  color: var(--color-text-light);
-  background: var(--color-bg-light);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
+/* --- Fields: one shared label column, so every row lines up --- */
 .hp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hp-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: start;
   gap: var(--spacing-md);
 }
 
-.hp-field { display: flex; flex-direction: column; gap: 5px; }
-
-.hp-field__label {
+.hp-row__label {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-dark);
+  padding-top: 9px;
 }
 
-.hp-field input,
-.hp-field textarea {
+.hp-row__control { min-width: 0; }
+
+.hp-row__control input,
+.hp-row__control textarea {
   font: inherit;
   font-size: 14px;
-  padding: 9px 11px;
+  width: 100%;
+  padding: 8px 11px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: #fff;
@@ -481,26 +528,31 @@
   resize: vertical;
 }
 
-.hp-field input:focus,
-.hp-field textarea:focus {
+.hp-row__control input:focus,
+.hp-row__control textarea:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
   border-color: var(--color-accent);
 }
 
-.hp-field__key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.hp-row__hint {
   font-size: 11px;
   color: var(--color-text-light);
+  margin: 4px 0 0;
 }
 
-.hp-slots { margin-top: var(--spacing-lg); }
+/* --- Media table: fixed grid so all sections align --- */
+.hp-slots {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
 
 .hp-slots__title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--color-text-light);
   margin: 0 0 var(--spacing-sm);
 }
@@ -511,31 +563,50 @@
   font-size: 13px;
 }
 
+.hp-slot-table { table-layout: fixed; }
+
 .admin-table th {
   text-align: left;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-light);
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
 }
 
 .admin-table td {
-  padding: 9px 10px;
+  padding: 8px;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
 
+.admin-table tr:last-child td { border-bottom: none; }
+
+.hp-slot-name {
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.hp-slot-source { color: var(--color-text-light); }
+
 .hp-slots__action { text-align: right; }
 
+.hp-slots__action .admin-btn {
+  padding: 5px 14px;
+  font-size: 13px;
+}
+
+/* --- Pills --- */
 .admin-pill {
   display: inline-block;
-  padding: 3px 10px;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .admin-pill--published { background: #E6F4EA; color: #1E7A3C; }
@@ -546,9 +617,9 @@
 .admin-pill--surface-both    { background: #E6F4EA; color: #1E7A3C; }
 
 .hp-msg {
-  padding: 10px 14px;
+  padding: 9px 14px;
   border-radius: var(--radius-md);
-  font-size: 14px;
+  font-size: 13px;
   margin-bottom: var(--spacing-md);
 }
 

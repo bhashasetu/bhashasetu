@@ -49,6 +49,19 @@ const SURFACE: Record<string, "Desktop" | "Mobile" | "Both"> = {
 
 /** Human labels for field keys; unknown keys fall back to a de-slugged form. */
 const FIELD_LABELS: Record<string, string> = {
+  hero_image: "Hero image",
+  mobile_hero_image: "Hero image (mobile)",
+  wro_video: "WRO video",
+  robot_image: "Robot image",
+  card_warli_image: "Warli card image",
+  card_katkari_image: "Katkari card image",
+  card_play_image: "Play & Learn card image",
+  card_stories_image: "Stories card image",
+  testimonial_1_image: "Testimonial 1 portrait",
+  testimonial_2_image: "Testimonial 2 portrait",
+  testimonial_3_image: "Testimonial 3 portrait",
+  todays_word_audio: "Pronunciation audio",
+  todays_word_image: "Artwork",
   heading: "Heading",
   description: "Description",
   title: "Title",
@@ -157,23 +170,24 @@ export function HomepageContentEditor({
 
   return (
     <div className="hp-editor">
-      <div className="hp-editor__bar">
-        <div>
-          <h2 className="hp-editor__title">{pageTitle}</h2>
-          <p className="admin-page-intro">
-            Editorial copy and media slots for the public homepage. Sections are
-            marked by the surface they appear on.
+      {/* Sticky so Save is reachable from anywhere on a long page. */}
+      <div className="hp-bar">
+        <div className="hp-bar__text">
+          <h2 className="hp-bar__title">Homepage Content</h2>
+          <p className="hp-bar__sub">
+            {pageTitle}
+            <span className={`admin-pill admin-pill--${pageStatus}`}>
+              {pageStatus}
+            </span>
           </p>
         </div>
-        <div className="hp-editor__actions">
-          <span className={`admin-pill admin-pill--${pageStatus}`}>
-            {pageStatus}
-          </span>
+        <div className="hp-bar__actions">
+          {dirty && <span className="hp-bar__dirty">{dirtyIds.length} unsaved</span>}
           <Link
             href={`/admin/pages/${pageId}`}
             className="admin-btn admin-btn--ghost"
           >
-            Section detail
+            Advanced
           </Link>
           <button
             type="button"
@@ -181,7 +195,7 @@ export function HomepageContentEditor({
             onClick={handleSave}
             disabled={!dirty || saving}
           >
-            {saving ? "Saving…" : dirty ? `Save ${dirtyIds.length} change${dirtyIds.length === 1 ? "" : "s"}` : "Saved"}
+            {saving ? "Saving\u2026" : "Save changes"}
           </button>
         </div>
       </div>
@@ -197,63 +211,97 @@ export function HomepageContentEditor({
         </p>
       )}
 
+      {/* Jump list: the page is long, so give it a spine. */}
+      <nav className="hp-jump" aria-label="Sections">
+        {ordered.map((section) => (
+          <a key={section.id} href={`#sec-${section.section_key}`}>
+            {section.title || section.section_key}
+          </a>
+        ))}
+      </nav>
+
       {ordered.map((section) => {
         const fields = [...(section.page_content ?? [])].sort(
           (a, b) =>
             fieldRank(a.field_key) - fieldRank(b.field_key) ||
             a.field_key.localeCompare(b.field_key)
         );
-        const slots = [...(section.media_slots ?? [])].sort((a, b) =>
-          a.slot_key.localeCompare(b.slot_key)
+        const slots = [...(section.media_slots ?? [])].sort(
+          (a, b) => (a.slot_key > b.slot_key ? 1 : -1)
         );
         const surface = SURFACE[section.section_key] ?? "Both";
 
         return (
-          <section className="admin-card hp-section" key={section.id}>
+          <section
+            className="admin-card hp-section"
+            id={`sec-${section.section_key}`}
+            key={section.id}
+          >
             <header className="hp-section__head">
               <h3>{section.title || section.section_key}</h3>
-              <div className="hp-section__tags">
-                <span className={`admin-pill admin-pill--surface-${surface.toLowerCase()}`}>
-                  {surface}
-                </span>
-                <code className="hp-key">{section.section_key}</code>
-              </div>
+              <span
+                className={`admin-pill admin-pill--surface-${surface.toLowerCase()}`}
+                title={`Appears on: ${surface}`}
+              >
+                {surface}
+              </span>
             </header>
 
             {fields.length > 0 && (
               <div className="hp-fields">
                 {fields.map((field) => (
-                  <label className="hp-field" key={field.id}>
-                    <span className="hp-field__label">
+                  <div className="hp-row" key={field.id}>
+                    <label
+                      className="hp-row__label"
+                      htmlFor={`f-${field.id}`}
+                      title={field.field_key}
+                    >
                       {labelFor(field.field_key)}
-                    </span>
-                    {isLongField(field.field_key) ? (
-                      <textarea
-                        rows={3}
-                        value={values[field.id] ?? ""}
-                        onChange={(e) =>
-                          setValues({ ...values, [field.id]: e.target.value })
-                        }
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={values[field.id] ?? ""}
-                        onChange={(e) =>
-                          setValues({ ...values, [field.id]: e.target.value })
-                        }
-                      />
-                    )}
-                    <span className="hp-field__key">{field.field_key}</span>
-                  </label>
+                    </label>
+                    <div className="hp-row__control">
+                      {isLongField(field.field_key) ? (
+                        <textarea
+                          id={`f-${field.id}`}
+                          rows={2}
+                          value={values[field.id] ?? ""}
+                          onChange={(e) =>
+                            setValues({ ...values, [field.id]: e.target.value })
+                          }
+                        />
+                      ) : (
+                        <input
+                          id={`f-${field.id}`}
+                          type="text"
+                          value={values[field.id] ?? ""}
+                          onChange={(e) =>
+                            setValues({ ...values, [field.id]: e.target.value })
+                          }
+                        />
+                      )}
+                      {field.field_key === "heading" && (
+                        <p className="hp-row__hint">
+                          Wrap a word in *asterisks* to show it in the accent
+                          gold, as the approved design does.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
 
             {slots.length > 0 && (
               <div className="hp-slots">
-                <h4 className="hp-slots__title">Media slots</h4>
-                <table className="admin-table">
+                <h4 className="hp-slots__title">Media</h4>
+                <table className="admin-table hp-slot-table">
+                  <colgroup>
+                    <col style={{ width: "32%" }} />
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "12%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>Slot</th>
@@ -261,20 +309,21 @@ export function HomepageContentEditor({
                       <th>Ratio</th>
                       <th>Asset</th>
                       <th>Source</th>
-                      <th />
+                      <th aria-label="Actions" />
                     </tr>
                   </thead>
                   <tbody>
                     {slots.map((slot) => {
-                      const assigned = (slot.slot_media_assignments ?? []).length > 0;
+                      const assigned =
+                        (slot.slot_media_assignments ?? []).length > 0;
                       const prompt = slot.generation_prompts?.[0];
                       return (
                         <tr key={slot.id}>
-                          <td>
-                            <code className="hp-key">{slot.slot_key}</code>
+                          <td className="hp-slot-name">
+                            {labelFor(slot.slot_key)}
                           </td>
                           <td>{slot.media_type}</td>
-                          <td>{slot.aspect_ratio ?? "—"}</td>
+                          <td>{slot.aspect_ratio ?? "\u2014"}</td>
                           <td>
                             <span
                               className={
@@ -286,19 +335,19 @@ export function HomepageContentEditor({
                               {assigned ? "Attached" : "Empty"}
                             </span>
                           </td>
-                          <td>
+                          <td className="hp-slot-source">
                             {prompt
                               ? prompt.provider === "manual"
-                                ? "Canonical asset"
-                                : `${prompt.provider} / ${prompt.model_name ?? "—"}`
-                              : "Upload only"}
+                                ? "Approved asset"
+                                : "Upload or generate"
+                              : "Upload"}
                           </td>
                           <td className="hp-slots__action">
                             <Link
                               href={`/admin/pages/${pageId}/slots/${slot.id}`}
                               className="admin-btn admin-btn--ghost"
                             >
-                              Manage
+                              {assigned ? "Replace" : "Add"}
                             </Link>
                           </td>
                         </tr>
