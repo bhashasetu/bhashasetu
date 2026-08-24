@@ -1,10 +1,18 @@
-export type MediaKind = "audio" | "image";
+export type MediaKind = "audio" | "image" | "video";
 
 const APPROVED_AUDIO_FORMATS: Record<string, string[]> = {
   ".mp3": ["audio/mpeg"],
   ".m4a": ["audio/mp4", "audio/x-m4a"],
   ".wav": ["audio/wav", "audio/x-wav"],
   ".ogg": ["audio/ogg"],
+};
+
+// Browsers report .mp4 as video/mp4, but some report audio/mp4 for
+// audio-only tracks; .m4a already claims audio/mp4, so extension decides.
+const APPROVED_VIDEO_FORMATS: Record<string, string[]> = {
+  ".mp4": ["video/mp4"],
+  ".webm": ["video/webm"],
+  ".mov": ["video/quicktime"],
 };
 
 const APPROVED_IMAGE_FORMATS: Record<string, string[]> = {
@@ -18,6 +26,7 @@ const APPROVED_IMAGE_FORMATS: Record<string, string[]> = {
 export const MEDIA_UPLOAD_LIMITS = {
   audio: { maxFileSizeBytes: 50 * 1024 * 1024 }, // 50 MB
   image: { maxFileSizeBytes: 20 * 1024 * 1024 }, // 20 MB
+  video: { maxFileSizeBytes: 200 * 1024 * 1024 }, // 200 MB
 };
 
 export type ValidationResult =
@@ -55,6 +64,19 @@ export function validateMediaUpload(
       return { valid: false, error: "Audio file exceeds the 50 MB limit." };
     }
     return { valid: true, mediaType: "audio", extension: ext };
+  }
+
+  if (APPROVED_VIDEO_FORMATS[ext]) {
+    if (!APPROVED_VIDEO_FORMATS[ext].includes(mimeType)) {
+      return {
+        valid: false,
+        error: `MIME type mismatch for ${ext}: received ${mimeType}, expected one of [${APPROVED_VIDEO_FORMATS[ext].join(", ")}].`,
+      };
+    }
+    if (fileSize > MEDIA_UPLOAD_LIMITS.video.maxFileSizeBytes) {
+      return { valid: false, error: "Video file exceeds the 200 MB limit." };
+    }
+    return { valid: true, mediaType: "video", extension: ext };
   }
 
   if (APPROVED_IMAGE_FORMATS[ext]) {

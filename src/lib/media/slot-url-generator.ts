@@ -7,11 +7,15 @@ export async function getSignedSlotMediaUrl(
   slotId: string
 ): Promise<string | null> {
   // Get the media assignment for this slot (first one)
+  // 'published' is the status the upload path writes and the RLS policy
+  // gates on. This previously looked for 'active', which nothing ever set,
+  // so no slot could ever resolve to an asset.
   const { data: assignment } = await supabase
     .from("slot_media_assignments")
     .select("media_asset_id")
     .eq("slot_id", slotId)
-    .eq("status", "active")
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 

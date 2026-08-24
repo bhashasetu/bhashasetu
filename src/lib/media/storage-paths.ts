@@ -3,6 +3,7 @@ import type { MediaKind } from "@/lib/media/validate-upload";
 const BUCKET_BY_MEDIA_TYPE: Record<MediaKind, string> = {
   audio: "media-audio",
   image: "media-images",
+  video: "media-video",
 };
 
 export function bucketForMediaType(mediaType: MediaKind): string {

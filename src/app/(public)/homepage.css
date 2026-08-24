@@ -1007,3 +1007,16 @@
   color: var(--color-primary);
   margin: 0;
 }
+
+/* Once real video is attached, its own controls replace the decorative
+   play badge. */
+.wro-video:has(video) .play-button,
+.mhome-wro__video:has(video) .mhome-play,
+.mhome-story__thumb:has(video) .mhome-play {
+  display: none;
+}
+
+.media-slot-audio {
+  width: 100%;
+  height: 34px;
+}

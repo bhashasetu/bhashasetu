@@ -13,7 +13,7 @@ function ratioToPadding(aspectRatio?: string): string | undefined {
  * Renders a managed media slot.
  *
  * A slot with no approved asset yet must still hold its exact space: the
- * placeholder uses the same aspect ratio as the real image so the surrounding
+ * placeholder uses the same aspect ratio as the real media so the surrounding
  * layout never shifts or collapses when media is later attached in the Back
  * Office. It is a designed, quiet placeholder rather than a broken-image box.
  */
@@ -22,12 +22,15 @@ export function MediaSlotImage({
   altText,
   aspectRatio,
   label,
+  mediaType = "image",
 }: {
   slotId: string;
   altText?: string;
   aspectRatio?: string;
   /** Short human label for the empty state, e.g. "Warli illustration". */
   label?: string;
+  /** Slot kind, so a video slot renders a player rather than an <img>. */
+  mediaType?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,14 +70,37 @@ export function MediaSlotImage({
   };
 
   if (url) {
+    const isVideo = mediaType === "video";
+    const isAudio = mediaType === "audio";
+
+    if (isAudio) {
+      // Audio has no frame to fill; render the control inline.
+      return (
+        <audio className="media-slot-audio" controls src={url}>
+          {altText}
+        </audio>
+      );
+    }
+
     return (
       <div className="media-slot" style={frameStyle}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt={altText || ""}
-          style={{ ...fillStyle, objectFit: "cover" }}
-        />
+        {isVideo ? (
+          <video
+            src={url}
+            controls
+            playsInline
+            preload="metadata"
+            aria-label={altText}
+            style={{ ...fillStyle, objectFit: "cover" }}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt={altText || ""}
+            style={{ ...fillStyle, objectFit: "cover" }}
+          />
+        )}
       </div>
     );
   }
@@ -86,7 +112,7 @@ export function MediaSlotImage({
         style={fillStyle}
         role="img"
         aria-label={
-          loading ? "Loading image" : altText || label || "Image coming soon"
+          loading ? "Loading media" : altText || label || "Media coming soon"
         }
       >
         {!loading && (

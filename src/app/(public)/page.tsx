@@ -183,6 +183,7 @@ export default async function HomePage() {
                       altText="Bhasha Setu WRO Future Innovators video"
                       aspectRatio="16:9"
                       label="WRO project video"
+                      mediaType="video"
                     />
                   )}
                   <div className="play-button" aria-hidden="true">

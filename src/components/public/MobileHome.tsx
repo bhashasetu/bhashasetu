@@ -155,6 +155,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
                 altText="Bhasha Setu WRO Future Innovators video"
                 aspectRatio="16:9"
                 label="Video"
+                mediaType="video"
               />
             )}
             <span className="mhome-play" aria-hidden="true">
@@ -210,6 +211,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
                         altText={title || `Story ${n}`}
                         aspectRatio="16:9"
                         label="Story"
+                        mediaType="image"
                       />
                     )}
                     <span className="mhome-play mhome-play--sm" aria-hidden="true">

@@ -42,6 +42,19 @@ export async function POST(request: Request) {
 
     if (error || !data) return badRequest("Unknown media slot");
     slot = data;
+
+    // 'thumbnail' and 'hero_image' slots hold images; everything else must
+    // match the uploaded kind.
+    const expected =
+      slot.media_type === "thumbnail" || slot.media_type === "hero_image"
+        ? "image"
+        : slot.media_type;
+
+    if (expected !== mediaType) {
+      return badRequest(
+        `This slot expects ${expected}, but the file is ${mediaType}.`
+      );
+    }
   }
 
   let body: Buffer = Buffer.from(await file.arrayBuffer());
