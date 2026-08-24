@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MediaSlotImage } from "@/components/public/MediaSlotImage";
 import { MobileHome } from "@/components/public/MobileHome";
 import { renderAccented } from "@/lib/content/accent";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import {
   findContent,
   findSection,
@@ -76,6 +77,22 @@ const TESTIMONIALS = [
       "We built Bhasha Setu to give back to the communities that inspire us.",
   },
 ] as const;
+
+/**
+ * Title, description, canonical and Open Graph tags come from the same CMS
+ * record the page body reads, so an editor changes them in the Back Office
+ * rather than in code (CLAUDE.md section 15).
+ */
+export async function generateMetadata() {
+  return buildPageMetadata({
+    slug: "homepage",
+    fallback: {
+      title: "Bhasha Setu — Learn Warli and Katkari",
+      description:
+        "A student-built learning platform for the Warli and Katkari languages, made with the communities who speak them.",
+    },
+  });
+}
 
 export default async function HomePage() {
   const supabase = await createClient();
