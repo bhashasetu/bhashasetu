@@ -867,7 +867,9 @@
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-md);
-  background: #111;
+  /* Matches the matte the canvas fills with when zoomed out past cover, so
+     the preview shows exactly what gets saved. */
+  background: #ffffff;
   box-shadow: 0 0 0 1px var(--color-border);
   touch-action: none;
 }

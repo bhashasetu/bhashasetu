@@ -6,6 +6,8 @@ const MAX_OUTPUT_WIDTH = 2000;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.1;
 const PREVIEW_WIDTH = 380;
+/** Letterbox fill for the area left empty when zoomed out past "cover". */
+const MATTE = "#ffffff";
 
 function parseRatio(aspectRatio: string): number {
   const [w, h] = aspectRatio.split(":").map(Number);
@@ -72,20 +74,37 @@ export function ImageCropper({
     return () => URL.revokeObjectURL(url);
   }, [file, previewHeight]);
 
-  const baseScale = imgEl
+  // zoom 1 == "cover" (frame filled, overflow cropped). minZoom reaches
+  // "contain" (whole image visible, letterboxed), so the editor can shrink
+  // the image as well as enlarge it.
+  const coverScale = imgEl
     ? Math.max(PREVIEW_WIDTH / imgEl.naturalWidth, previewHeight / imgEl.naturalHeight)
     : 1;
+  const containScale = imgEl
+    ? Math.min(PREVIEW_WIDTH / imgEl.naturalWidth, previewHeight / imgEl.naturalHeight)
+    : 1;
+  // Rounded down to 2dp so the slider's 0.01 step grid lands on it exactly;
+  // rounding down only ever shows slightly more of the frame, never less.
+  const minZoom =
+    coverScale > 0 ? Math.floor((containScale / coverScale) * 100) / 100 : 1;
+
+  const baseScale = coverScale;
   const scale = baseScale * zoom;
   const scaledW = imgEl ? imgEl.naturalWidth * scale : 0;
   const scaledH = imgEl ? imgEl.naturalHeight * scale : 0;
 
   function clampAt(left: number, top: number, w: number, h: number) {
-    const minLeft = Math.min(0, PREVIEW_WIDTH - w);
-    const minTop = Math.min(0, previewHeight - h);
-    return {
-      left: Math.min(0, Math.max(minLeft, left)),
-      top: Math.min(0, Math.max(minTop, top)),
-    };
+    // An axis smaller than the frame (zoomed out past cover) is centred
+    // rather than pinned to an edge.
+    const l =
+      w <= PREVIEW_WIDTH
+        ? (PREVIEW_WIDTH - w) / 2
+        : Math.min(0, Math.max(PREVIEW_WIDTH - w, left));
+    const t =
+      h <= previewHeight
+        ? (previewHeight - h) / 2
+        : Math.min(0, Math.max(previewHeight - h, top));
+    return { left: l, top: t };
   }
 
   function handlePointerDown(e: React.PointerEvent) {
@@ -122,7 +141,7 @@ export function ImageCropper({
       setZoom(nextZoom);
       return;
     }
-    const clampedZoom = Math.min(MAX_ZOOM, Math.max(1, nextZoom));
+    const clampedZoom = Math.min(MAX_ZOOM, Math.max(minZoom, nextZoom));
     const nextScale = baseScale * clampedZoom;
     const nextW = imgEl.naturalWidth * nextScale;
     const nextH = imgEl.naturalHeight * nextScale;
@@ -147,6 +166,9 @@ export function ImageCropper({
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    // Zoomed out past cover, part of the frame has no image behind it.
+    ctx.fillStyle = MATTE;
+    ctx.fillRect(0, 0, outW, outH);
     ctx.drawImage(imgEl, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
 
     const isPng = file.type === "image/png";
@@ -191,14 +213,14 @@ export function ImageCropper({
           type="button"
           className="admin-btn admin-btn--ghost cropper__zoom-btn"
           onClick={() => setZoomClamped(zoom - ZOOM_STEP)}
-          disabled={zoom <= 1}
+          disabled={zoom <= minZoom + 0.001}
           aria-label="Decrease zoom"
         >
           −
         </button>
         <input
           type="range"
-          min={1}
+          min={minZoom}
           max={MAX_ZOOM}
           step={0.01}
           value={zoom}
@@ -216,8 +238,9 @@ export function ImageCropper({
         </button>
       </div>
       <p className="hp-row__hint">
-        Drag the image to reposition it. Zoom in to crop tighter, or stay at
-        minimum zoom to fit the whole image in the frame.
+        Drag the image to reposition it. Zoom in to crop tighter, or out to
+        fit more of the image in — at the lowest setting the whole image fits,
+        with white filling the rest of the frame.
       </p>
 
       <div className="cropper__actions">

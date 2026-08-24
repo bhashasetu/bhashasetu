@@ -30,6 +30,10 @@ export function MobileHome({ sections }: { sections: any[] }) {
 
   const heroImage = slot(hero, "mobile_hero_image");
   const wordImage = slot(word, "todays_word_image");
+  // Bound once each: guarding on slot(...) then calling it again to read .id
+  // means the guard never protects the second call.
+  const wroVideo = slot(wro, "wro_video");
+  const robot = slot(chat, "robot_image");
   const nativeText = content(word, "native_text");
 
   return (
@@ -51,7 +55,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
               <MediaSlotImage
                 slotId={heroImage.id}
                 altText="The Bhasha Setu WRO project vehicle"
-                aspectRatio="4:3"
+                aspectRatio={heroImage.aspect_ratio ?? undefined}
                 label="WRO vehicle"
               />
             </div>
@@ -91,7 +95,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
                     <MediaSlotImage
                       slotId={s.id}
                       altText={`${lang.name} artwork`}
-                      aspectRatio="1:1"
+                      aspectRatio={s.aspect_ratio ?? undefined}
                       label={lang.name}
                     />
                   )}
@@ -131,7 +135,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
               <MediaSlotImage
                 slotId={wordImage.id}
                 altText="Warli artwork"
-                aspectRatio="16:9"
+                aspectRatio={wordImage.aspect_ratio ?? undefined}
                 label="Artwork"
               />
             </div>
@@ -149,11 +153,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
             </Link>
           </div>
           <div className="mhome-wro__video">
-            {slot(wro, "wro_video") && (
+            {wroVideo && (
               <MediaSlotImage
-                slotId={slot(wro, "wro_video").id}
+                slotId={wroVideo.id}
                 altText="Bhasha Setu WRO Future Innovators video"
-                aspectRatio="16:9"
+                aspectRatio={wroVideo.aspect_ratio ?? undefined}
                 label="Video"
                 mediaType="video"
               />
@@ -168,11 +172,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
       {chat && (
         <section className="mhome-chat">
           <div className="mhome-chat__robot">
-            {slot(chat, "robot_image") && (
+            {robot && (
               <MediaSlotImage
-                slotId={slot(chat, "robot_image").id}
+                slotId={robot.id}
                 altText="The Bhasha Setu robot, your learning companion"
-                aspectRatio="1:1"
+                aspectRatio={robot.aspect_ratio ?? undefined}
                 label="Robot"
               />
             )}
@@ -209,7 +213,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
                       <MediaSlotImage
                         slotId={thumb.id}
                         altText={title || `Story ${n}`}
-                        aspectRatio="16:9"
+                        aspectRatio={thumb.aspect_ratio ?? undefined}
                         label="Story"
                         mediaType="image"
                       />

@@ -175,7 +175,7 @@ export default async function HomePage() {
                 <MediaSlotImage
                   slotId={heroImageSlot.id}
                   altText="The Bhasha Setu WRO project vehicle"
-                  aspectRatio="4:3"
+                  aspectRatio={heroImageSlot.aspect_ratio ?? undefined}
                   label="WRO vehicle photograph"
                 />
               )}
@@ -189,7 +189,7 @@ export default async function HomePage() {
                     <MediaSlotImage
                       slotId={wroVideoSlot.id}
                       altText="Bhasha Setu WRO Future Innovators video"
-                      aspectRatio="16:9"
+                      aspectRatio={wroVideoSlot.aspect_ratio ?? undefined}
                       label="WRO project video"
                       mediaType="video"
                     />
@@ -228,7 +228,7 @@ export default async function HomePage() {
                         <MediaSlotImage
                           slotId={slot.id}
                           altText={card.altText}
-                          aspectRatio="1:1"
+                          aspectRatio={slot.aspect_ratio ?? undefined}
                           label={card.placeholderLabel}
                         />
                       )}
@@ -269,7 +269,7 @@ export default async function HomePage() {
                             <MediaSlotImage
                               slotId={slot.id}
                               altText={`Portrait of ${person.name}`}
-                              aspectRatio="1:1"
+                              aspectRatio={slot.aspect_ratio ?? undefined}
                               label="Portrait"
                             />
                           )}
@@ -321,7 +321,7 @@ export default async function HomePage() {
                     <MediaSlotImage
                       slotId={robotSlot.id}
                       altText="The Bhasha Setu robot, your learning companion"
-                      aspectRatio="1:1"
+                      aspectRatio={robotSlot.aspect_ratio ?? undefined}
                       label="Robot"
                     />
                   )}
