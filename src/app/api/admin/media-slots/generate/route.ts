@@ -44,8 +44,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Use the requested provider when it has a key, otherwise whichever
-    // provider this deployment actually has configured.
+    // Throws when the preset's provider has no key here, rather than
+    // silently billing a different vendor.
     const imageProvider = resolveConfiguredProvider(provider);
 
     const { imageUrl, mimeType, modelName } = await imageProvider.generateImage(
@@ -128,8 +128,11 @@ export async function POST(request: Request) {
         generation_status: "completed",
         media_asset_id: mediaAsset.id,
         approval_status: "draft",
-        // Record the provider that actually ran, which may differ from the
-        // preset when the preset's provider has no key here.
+        // Record the provider that ran. It now always matches the preset —
+        // resolveConfiguredProvider refuses rather than substituting one
+        // vendor for another — but the run is still recorded from the
+        // provider object, not the request, so the audit trail reflects what
+        // actually happened.
         provider: imageProvider.name,
         model_name: modelName ?? prompt.model_name,
       })

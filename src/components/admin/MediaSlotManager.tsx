@@ -9,6 +9,7 @@ import {
   attachVideoLink,
   shouldUploadDirect,
 } from "@/lib/media/direct-upload";
+import { downscaleImage } from "@/lib/media/downscale-image";
 
 type MediaSlot = {
   id: string;
@@ -125,8 +126,13 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
       return;
     }
 
+    // A slot with no fixed ratio skips the cropper, so the file arrives at
+    // full size and would hit Vercel's 4.5 MB request-body limit. Cropped
+    // files are already within bounds and pass through untouched.
+    const toSend = await downscaleImage(file);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", toSend);
     formData.append("media_type", slot.media_type);
     formData.append("slot_id", slot.id);
 

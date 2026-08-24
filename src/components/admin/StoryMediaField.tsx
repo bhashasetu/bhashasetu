@@ -6,6 +6,7 @@ import { AdminMediaPreview } from "./AdminMediaPreview";
 import { ImageCropper } from "./ImageCropper";
 import { uploadMediaDirect, attachVideoLink } from "@/lib/media/direct-upload";
 import { MEDIA_UPLOAD_LIMITS } from "@/lib/media/validate-upload";
+import { downscaleImage } from "@/lib/media/downscale-image";
 
 const MAX_UPLOAD_MB = Math.round(
   MEDIA_UPLOAD_LIMITS.video.maxFileSizeBytes / (1024 * 1024)
@@ -55,8 +56,12 @@ export function StoryMediaField({
     setBusy(true);
     reset();
 
+    // Without a target ratio there is no crop step, so the file arrives at
+    // full size and would hit Vercel's 4.5 MB request-body limit.
+    const toSend = await downscaleImage(file);
+
     const form = new FormData();
-    form.append("file", file);
+    form.append("file", toSend);
     if (aspectRatio) form.append("aspect_ratio", aspectRatio);
     // No slot to attach to, so the asset has to be published explicitly or
     // the public page cannot read it.

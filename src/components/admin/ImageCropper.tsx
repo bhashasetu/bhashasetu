@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+// Shared with the plain-upload downscaler so both produce the same size.
+import { MAX_OUTPUT_WIDTH, OUTPUT_QUALITY } from "@/lib/media/image-output";
 
-const MAX_OUTPUT_WIDTH = 2000;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.1;
 const PREVIEW_WIDTH = 380;
@@ -178,7 +179,7 @@ export function ImageCropper({
         onConfirm(new File([blob], file.name, { type: blob.type }));
       },
       isPng ? "image/png" : "image/jpeg",
-      0.86
+      OUTPUT_QUALITY
     );
   }
 

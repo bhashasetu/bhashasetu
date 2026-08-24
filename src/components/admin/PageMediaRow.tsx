@@ -5,6 +5,7 @@ import type { ChangeEvent } from "react";
 import Link from "next/link";
 import { AdminMediaPreview } from "./AdminMediaPreview";
 import { uploadMediaDirect, shouldUploadDirect } from "@/lib/media/direct-upload";
+import { downscaleImage } from "@/lib/media/downscale-image";
 import type { MediaSlot } from "./PageContentEditor";
 
 /**
@@ -70,8 +71,13 @@ export function PageMediaRow({
       return;
     }
 
+    // This row posts the file as-is, with no crop step, so a large photo
+    // would otherwise hit Vercel's 4.5 MB body limit and fail with a bare
+    // 413. Anything already small enough passes through untouched.
+    const toSend = await downscaleImage(file);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", toSend);
     formData.append("media_type", slot.media_type);
     formData.append("slot_id", slot.id);
 

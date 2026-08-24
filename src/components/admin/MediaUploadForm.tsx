@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadMediaDirect, shouldUploadDirect } from "@/lib/media/direct-upload";
+import { downscaleImage } from "@/lib/media/downscale-image";
 
 export function MediaUploadForm() {
   const router = useRouter();
@@ -36,8 +37,12 @@ export function MediaUploadForm() {
       return;
     }
 
+    // No crop step here, so an oversized photo would hit Vercel's 4.5 MB
+    // request-body limit and fail with an opaque 413.
+    const toSend = await downscaleImage(file);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", toSend);
     if (title) formData.append("title", title);
 
     const res = await fetch("/api/admin/media/upload", {
