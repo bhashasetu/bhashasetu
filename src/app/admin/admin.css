@@ -851,3 +851,64 @@
   display: flex;
   gap: var(--spacing-sm);
 }
+
+/* ============================================================
+   IMAGE CROPPER (Manage Media Slot upload)
+   ============================================================ */
+
+.cropper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.cropper__frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #111;
+  box-shadow: 0 0 0 1px var(--color-border);
+  touch-action: none;
+}
+
+.cropper__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.cropper__image:active { cursor: grabbing; }
+
+.cropper__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 380px;
+}
+
+.cropper__zoom-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.cropper__zoom-btn {
+  padding: 2px 10px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cropper__controls input[type="range"] {
+  flex: 1;
+}
+
+.cropper__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: 4px;
+}

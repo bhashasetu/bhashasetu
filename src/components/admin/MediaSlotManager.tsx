@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { AdminMediaPreview } from "./AdminMediaPreview";
+import { ImageCropper } from "./ImageCropper";
 
 type MediaSlot = {
   id: string;
@@ -40,6 +41,9 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
   const [uploadingFile, setUploadingFile] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Staged for the crop control: an image slot with a fixed ratio lets the
+  // editor choose the crop instead of always taking the automatic one.
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   // Key presence can only be known on the server; a client component reading
   // process.env.OPENAI_API_KEY always sees undefined.
   const [configured, setConfigured] = useState<string[] | null>(null);
@@ -91,10 +95,7 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
     }
   };
 
-  const handleUploadFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadFile = async (file: File) => {
     setUploadingFile(true);
     setError(null);
     setNotice(null);
@@ -127,9 +128,32 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploadingFile(false);
-      // Allow re-selecting the same file after a failure.
-      e.target.value = "";
     }
+  };
+
+  // An image slot with a fixed ratio gets the crop control, so the editor
+  // decides which part of the photo fills the frame. Anything else (video,
+  // audio, or a slot with no required ratio) uploads directly, as before.
+  const canCropUpload = slot.media_type === "image" && !!slot.aspect_ratio;
+
+  const handleFileSelected = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setError(null);
+    setNotice(null);
+
+    if (canCropUpload) {
+      setPendingCropFile(file);
+    } else {
+      uploadFile(file);
+    }
+  };
+
+  const handleCropConfirm = (cropped: File) => {
+    setPendingCropFile(null);
+    uploadFile(cropped);
   };
 
   const handleSavePromptEdit = async (promptId: string) => {
@@ -192,28 +216,46 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
 
       <div className="slotmgr__section">
         <h3 className="slotmgr__heading">Upload media</h3>
-        <div className="hp-row">
-          <label className="hp-row__label" htmlFor="slot-upload">
-            File
-          </label>
-          <div className="hp-row__control">
-            <input
-              id="slot-upload"
-              type="file"
-              onChange={handleUploadFile}
-              disabled={uploadingFile}
-            />
-            {slot.aspect_ratio && (
-              <p className="hp-row__hint">
-                Any size is fine — the image is centre-cropped to{" "}
-                {slot.aspect_ratio} automatically.
-              </p>
-            )}
-            {uploadingFile && <p className="slotmgr__status">Uploading…</p>}
-            {notice && <p className="slotmgr__status slotmgr__status--ok">{notice}</p>}
-            {error && <p className="slotmgr__status slotmgr__status--error">{error}</p>}
+
+        {pendingCropFile ? (
+          <ImageCropper
+            file={pendingCropFile}
+            aspectRatio={slot.aspect_ratio!}
+            onConfirm={handleCropConfirm}
+            onCancel={() => setPendingCropFile(null)}
+          />
+        ) : (
+          <div className="hp-row">
+            <label className="hp-row__label" htmlFor="slot-upload">
+              File
+            </label>
+            <div className="hp-row__control">
+              <input
+                id="slot-upload"
+                type="file"
+                accept={slot.media_type === "image" ? "image/*" : undefined}
+                onChange={handleFileSelected}
+                disabled={uploadingFile}
+              />
+              {canCropUpload ? (
+                <p className="hp-row__hint">
+                  Any size is fine — you&apos;ll choose how it crops to{" "}
+                  {slot.aspect_ratio} on the next step.
+                </p>
+              ) : (
+                slot.aspect_ratio && (
+                  <p className="hp-row__hint">
+                    Any size is fine — the image is centre-cropped to{" "}
+                    {slot.aspect_ratio} automatically.
+                  </p>
+                )
+              )}
+              {uploadingFile && <p className="slotmgr__status">Uploading…</p>}
+              {notice && <p className="slotmgr__status slotmgr__status--ok">{notice}</p>}
+              {error && <p className="slotmgr__status slotmgr__status--error">{error}</p>}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {slot.generation_prompts && slot.generation_prompts.length > 0 && (
