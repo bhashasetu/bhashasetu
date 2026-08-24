@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { notFound, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MediaSlotManager } from "@/components/admin/MediaSlotManager";
 
@@ -27,6 +27,12 @@ type MediaSlot = {
   }>;
 };
 
+function labelFor(key: string) {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b(\w)/g, (m) => m.toUpperCase());
+}
+
 export default function SlotDetailPage({
   params,
 }: {
@@ -39,22 +45,23 @@ export default function SlotDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Resolve params and fetch data
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const { id, slotId } = await params;
+        if (cancelled) return;
         setParamData({ id, slotId });
 
-        // Fetch the full page data to get the slot
         const response = await fetch(`/api/admin/pages/${id}`);
         if (!response.ok) throw new Error("Failed to load page");
         const { data: page } = await response.json();
 
-        // Find the slot in the page sections
         let foundSlot: MediaSlot | null = null;
         for (const section of page.page_sections || []) {
-          const mediaSlot = section.media_slots?.find((s: any) => s.id === slotId);
+          const mediaSlot = section.media_slots?.find(
+            (s: { id: string }) => s.id === slotId
+          );
           if (mediaSlot) {
             foundSlot = mediaSlot;
             break;
@@ -62,60 +69,76 @@ export default function SlotDetailPage({
         }
 
         if (!foundSlot) throw new Error("Slot not found");
-        setSlot(foundSlot);
+        if (!cancelled) setSlot(foundSlot);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unknown error");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [params]);
 
   if (loading) {
     return (
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
-        <p>Loading slot data...</p>
-      </main>
+      <div className="admin-card slotmgr-page__loading">
+        <p>Loading slot data…</p>
+      </div>
     );
   }
 
   if (error || !slot || !paramData) {
     return (
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
-        <h1>Error</h1>
-        <p>{error || "Slot not found"}</p>
-        {paramData && <Link href={`/admin/pages/${paramData.id}/edit`}>← Back to page editor</Link>}
-      </main>
+      <div className="admin-card">
+        <h2>Error</h2>
+        <p className="admin-page-intro">{error || "Slot not found"}</p>
+        <Link href="/admin/homepage" className="admin-btn admin-btn--ghost">
+          ← Back to Homepage Content
+        </Link>
+      </div>
     );
   }
 
-  const handleUpdate = () => {
-    router.refresh();
-  };
+  const handleUpdate = () => router.refresh();
 
   return (
-    <main style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
-      <h1>Manage Media Slot</h1>
-
-      <div style={{ marginBottom: "20px", padding: "15px", backgroundColor: "#f0f8ff", borderRadius: "8px" }}>
-        <p>
-          <strong>Slot:</strong> {slot.slot_key}
-        </p>
-        <p>
-          <strong>Type:</strong> {slot.media_type}
-        </p>
-        {slot.aspect_ratio && (
-          <p>
-            <strong>Aspect Ratio:</strong> {slot.aspect_ratio}
-          </p>
-        )}
+    <div className="slotmgr-page">
+      <div className="hp-bar hp-bar--static">
+        <div className="hp-bar__text">
+          <h2 className="hp-bar__title">Manage Media Slot</h2>
+          <p className="hp-bar__sub">{labelFor(slot.slot_key)}</p>
+        </div>
+        <Link href="/admin/homepage" className="admin-btn admin-btn--ghost">
+          ← Back to Homepage Content
+        </Link>
       </div>
 
-      <MediaSlotManager slot={slot} onUpdate={handleUpdate} />
+      <div className="admin-card slotmgr-info">
+        <div className="hp-row">
+          <span className="hp-row__label">Slot</span>
+          <span className="hp-row__control">
+            <code className="hp-key">{slot.slot_key}</code>
+          </span>
+        </div>
+        <div className="hp-row">
+          <span className="hp-row__label">Type</span>
+          <span className="hp-row__control">{slot.media_type}</span>
+        </div>
+        <div className="hp-row">
+          <span className="hp-row__label">Aspect ratio</span>
+          <span className="hp-row__control">
+            {slot.aspect_ratio || "Not specified"}
+          </span>
+        </div>
+      </div>
 
-      <p style={{ marginTop: "20px" }}>
-        <Link href={`/admin/pages/${paramData.id}/edit`}>← Back to page editor</Link>
-      </p>
-    </main>
+      <div className="admin-card">
+        <MediaSlotManager slot={slot} onUpdate={handleUpdate} />
+      </div>
+    </div>
   );
 }

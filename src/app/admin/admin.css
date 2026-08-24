@@ -561,13 +561,14 @@
   margin: 0 0 var(--spacing-sm);
 }
 
+/* Generic table primitive, available for other admin screens (e.g. Words &
+   Phrases per ADMIN-02) even though Homepage Content no longer uses a table
+   for its media slots. */
 .admin-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
-
-.hp-slot-table { table-layout: fixed; }
 
 .admin-table th {
   text-align: left;
@@ -588,19 +589,71 @@
 
 .admin-table tr:last-child td { border-bottom: none; }
 
-.hp-slot-name {
+/* --- Media rows: preview + inline uploader, one per slot --- */
+.hp-media-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.hp-media {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.hp-media:first-child { border-top: none; }
+
+.hp-media__preview { width: 96px; }
+
+.hp-media__body { min-width: 0; }
+
+.hp-media__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.hp-media__label {
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text-dark);
 }
 
-.hp-slot-source { color: var(--color-text-light); }
-
-.hp-slots__action { text-align: right; }
-
-.hp-slots__action .admin-btn {
-  padding: 5px 14px;
-  font-size: 13px;
+.hp-media__spec {
+  font-size: 12px;
+  color: var(--color-text-light);
 }
+
+.hp-media__upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.hp-media__upload input[type="file"] {
+  font-size: 13px;
+  max-width: 220px;
+}
+
+.hp-media__hint {
+  font-size: 11px;
+  color: var(--color-text-light);
+  margin: 6px 0 0;
+}
+
+.hp-media__status {
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+.hp-media__status--ok    { color: #1E7A3C; }
+.hp-media__status--error { color: #B3261E; }
 
 /* --- Pills --- */
 .admin-pill {
@@ -629,3 +682,172 @@
 
 .hp-msg--ok    { background: #E6F4EA; color: #1E7A3C; }
 .hp-msg--error { background: #FDECEA; color: #B3261E; }
+
+/* ============================================================
+   SLOT MANAGER PAGE (/admin/pages/[id]/slots/[slotId])
+   ============================================================ */
+
+.slotmgr-page { max-width: 760px; }
+
+.slotmgr-page__loading { color: var(--color-text-light); }
+
+/* hp-bar is normally sticky under the Homepage Content top bar; here it is
+   just a static page header, so it opts out of position/sticky. */
+.hp-bar--static {
+  position: static;
+  top: auto;
+}
+
+.slotmgr-info .hp-row {
+  grid-template-columns: 140px minmax(0, 1fr);
+}
+
+.slotmgr-info .hp-row + .hp-row {
+  margin-top: 8px;
+}
+
+.slotmgr__top {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--spacing-md);
+  align-items: center;
+  padding-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.slotmgr__preview { width: 160px; }
+
+.admin-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-light);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.admin-preview img,
+.admin-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-preview--empty,
+.admin-preview--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--spacing-sm);
+}
+
+.admin-preview--empty span {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.admin-preview--loading {
+  background: linear-gradient(90deg, var(--color-bg-light) 25%, #F0EDE7 37%, var(--color-bg-light) 63%);
+  background-size: 400% 100%;
+  animation: admin-preview-pulse 1.4s ease infinite;
+}
+
+@keyframes admin-preview-pulse {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.admin-preview--audio {
+  aspect-ratio: auto;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-sm);
+}
+
+.admin-preview--audio audio { width: 100%; }
+
+.slotmgr__meta { min-width: 0; }
+
+.slotmgr__filename {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin: 0 0 6px;
+  word-break: break-word;
+}
+
+.slotmgr__filename--empty {
+  font-weight: 400;
+  color: var(--color-text-light);
+}
+
+.slotmgr__section {
+  padding-top: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.slotmgr__section:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
+.slotmgr__heading {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-light);
+  margin: 0 0 var(--spacing-md);
+}
+
+.slotmgr__status {
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.slotmgr__status--ok    { color: #1E7A3C; }
+.slotmgr__status--error { color: #B3261E; }
+.slotmgr__status--warn  { color: #B3781A; }
+
+.slotmgr__prompt {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.slotmgr__prompt-head {
+  font-size: 13px;
+  color: var(--color-text-dark);
+  margin-bottom: 6px;
+}
+
+.slotmgr__prompt-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-dark);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.slotmgr__prompt-edit textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  margin-bottom: var(--spacing-sm);
+}
+
+.slotmgr__prompt-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}

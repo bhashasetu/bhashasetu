@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import { AdminMediaPreview } from "./AdminMediaPreview";
 
 type MediaSlot = {
   id: string;
@@ -25,11 +26,15 @@ type MediaSlot = {
   }>;
 };
 
+const PROVIDER_KEY: Record<string, string> = {
+  openai: "openai",
+  "fal.ai": "fal.ai",
+  flux: "fal.ai",
+};
+
 export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate: () => void }) {
   const [generating, setGenerating] = useState(false);
-  const [generatingProvider, setGeneratingProvider] = useState<
-    "openai" | "fal.ai" | null
-  >(null);
+  const [generatingProvider, setGeneratingProvider] = useState<string | null>(null);
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [promptText, setPromptText] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -57,34 +62,29 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
     };
   }, []);
 
-  const handleGenerateImage = async (
-    provider: "openai" | "fal.ai",
-    promptId: string
-  ) => {
+  const currentAssignment = slot.slot_media_assignments?.[0] ?? null;
+
+  const handleGenerateImage = async (provider: string, promptId: string) => {
     setGenerating(true);
     setGeneratingProvider(provider);
+    setError(null);
 
     try {
       const res = await fetch("/api/admin/media-slots/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slotId: slot.id,
-          provider,
-          promptId,
-        }),
+        body: JSON.stringify({ slotId: slot.id, provider, promptId }),
       });
 
       if (res.ok) {
+        setNotice("Generated. Review it in Media before it can be attached here.");
         onUpdate();
       } else {
-        const error = await res.json();
-        console.error("Generation failed:", error);
-        alert(`Generation failed: ${error.error}`);
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Generation failed");
       }
-    } catch (error) {
-      console.error("Generation error:", error);
-      alert("Failed to generate image");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setGenerating(false);
       setGeneratingProvider(null);
@@ -137,159 +137,175 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
       const res = await fetch("/api/admin/generation-prompts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: promptId,
-          prompt_text: promptText,
-        }),
+        body: JSON.stringify({ id: promptId, prompt_text: promptText }),
       });
 
       if (res.ok) {
         setEditingPromptId(null);
         onUpdate();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Could not save prompt");
       }
-    } catch (error) {
-      alert("Failed to save prompt");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save prompt");
     }
   };
 
   return (
-    <div style={{ border: "1px solid #ccc", padding: "20px", margin: "10px 0" }}>
-      <h4>{slot.slot_key}</h4>
-      <p>
-        Type: {slot.media_type} | Aspect Ratio: {slot.aspect_ratio || "not specified"}
-      </p>
-
-      {/* Current Media */}
-      {slot.slot_media_assignments && slot.slot_media_assignments.length > 0 && (
-        <div>
-          <h5>Current Media</h5>
-          <ul>
-            {slot.slot_media_assignments.map((assignment) => (
-              <li key={assignment.id}>
-                {assignment.media_asset.title || assignment.media_asset.filename}
-                <br />
-                <small>Status: {assignment.media_asset.status}</small>
-              </li>
-            ))}
-          </ul>
+    <div className="slotmgr">
+      <div className="slotmgr__top">
+        <div className="slotmgr__preview">
+          {currentAssignment ? (
+            <AdminMediaPreview
+              key={currentAssignment.media_asset.id}
+              assetId={currentAssignment.media_asset.id}
+              mediaType={slot.media_type}
+              label={currentAssignment.media_asset.title || currentAssignment.media_asset.filename}
+            />
+          ) : (
+            <div className="admin-preview admin-preview--empty">
+              <span>No media attached</span>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Manual Upload */}
-      <div style={{ marginTop: "15px" }}>
-        <label>
-          Upload Media:
-          <input
-            type="file"
-            onChange={handleUploadFile}
-            disabled={uploadingFile}
-          />
-        </label>
-        {uploadingFile && <span> Uploading…</span>}
-        {slot.aspect_ratio && (
-          <p style={{ fontSize: 12, color: "#666", margin: "4px 0 0" }}>
-            Any size is fine — the image is centre-cropped to{" "}
-            {slot.aspect_ratio} automatically.
-          </p>
-        )}
-        {notice && <p style={{ color: "#1E7A3C", fontSize: 13 }}>{notice}</p>}
-        {error && <p style={{ color: "#B3261E", fontSize: 13 }}>{error}</p>}
+        <div className="slotmgr__meta">
+          {currentAssignment ? (
+            <>
+              <p className="slotmgr__filename">
+                {currentAssignment.media_asset.title || currentAssignment.media_asset.filename}
+              </p>
+              <span
+                className={`admin-pill admin-pill--${currentAssignment.media_asset.status}`}
+              >
+                {currentAssignment.media_asset.status}
+              </span>
+            </>
+          ) : (
+            <p className="slotmgr__filename slotmgr__filename--empty">
+              This slot has no media yet.
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Generation Prompts */}
+      <div className="slotmgr__section">
+        <h3 className="slotmgr__heading">Upload media</h3>
+        <div className="hp-row">
+          <label className="hp-row__label" htmlFor="slot-upload">
+            File
+          </label>
+          <div className="hp-row__control">
+            <input
+              id="slot-upload"
+              type="file"
+              onChange={handleUploadFile}
+              disabled={uploadingFile}
+            />
+            {slot.aspect_ratio && (
+              <p className="hp-row__hint">
+                Any size is fine — the image is centre-cropped to{" "}
+                {slot.aspect_ratio} automatically.
+              </p>
+            )}
+            {uploadingFile && <p className="slotmgr__status">Uploading…</p>}
+            {notice && <p className="slotmgr__status slotmgr__status--ok">{notice}</p>}
+            {error && <p className="slotmgr__status slotmgr__status--error">{error}</p>}
+          </div>
+        </div>
+      </div>
+
       {slot.generation_prompts && slot.generation_prompts.length > 0 && (
-        <div style={{ marginTop: "15px" }}>
-          <h5>Generate Image</h5>
+        <div className="slotmgr__section">
+          <h3 className="slotmgr__heading">Create with AI</h3>
 
           {configured !== null && configured.length === 0 && (
-            <p style={{ color: "#B3781A" }}>
+            <p className="slotmgr__status slotmgr__status--warn">
               No image generation provider is configured. Set OPENAI_API_KEY or
               FAL_AI_KEY in the Vercel project settings.
             </p>
           )}
           {configured !== null && configured.length > 0 && (
-            <p style={{ color: "#1E7A3C", fontSize: 13 }}>
+            <p className="slotmgr__status slotmgr__status--ok">
               Configured: {configured.join(", ")}
             </p>
           )}
 
-          {slot.generation_prompts.map((prompt) => (
-            <div
-              key={prompt.id}
-              style={{
-                border: "1px solid #e0e0e0",
-                padding: "10px",
-                marginBottom: "10px",
-                borderRadius: "4px",
-              }}
-            >
-              <div>
-                <strong>{prompt.provider}</strong>
-                {prompt.model_name && <span> ({prompt.model_name})</span>}
-              </div>
+          {slot.generation_prompts.map((prompt) => {
+            const providerKey = PROVIDER_KEY[prompt.provider] ?? prompt.provider;
+            const providerReady =
+              configured !== null && configured.includes(providerKey);
 
-              {editingPromptId === prompt.id ? (
-                <div>
-                  <textarea
-                    value={promptText}
-                    onChange={(e) => setPromptText(e.target.value)}
-                    rows={4}
-                    style={{ width: "100%", marginTop: "5px" }}
-                  />
-                  <div style={{ marginTop: "5px" }}>
-                    <button
-                      onClick={() => handleSavePromptEdit(prompt.id)}
-                      disabled={generating}
-                    >
-                      Save Prompt
-                    </button>
-                    <button
-                      onClick={() => setEditingPromptId(null)}
-                      style={{ marginLeft: "5px" }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+            return (
+              <div className="slotmgr__prompt" key={prompt.id}>
+                <div className="slotmgr__prompt-head">
+                  <strong>{prompt.provider}</strong>
+                  {prompt.model_name && <span> ({prompt.model_name})</span>}
                 </div>
-              ) : (
-                <div>
-                  <p style={{ fontSize: "14px", margin: "5px 0" }}>
-                    {prompt.prompt_text}
-                  </p>
-                  <div>
-                    <button
-                      onClick={() => handleGenerateImage(
-                        prompt.provider as "openai" | "fal.ai",
-                        prompt.id
-                      )}
-                      disabled={
-                        generating ||
-                        (prompt.provider === "openai" &&
-                          !process.env.OPENAI_API_KEY) ||
-                        ((prompt.provider === "fal.ai" ||
-                          prompt.provider === "flux") &&
-                          !process.env.FAL_AI_KEY)
-                      }
-                    >
-                      {generating && generatingProvider === prompt.provider
-                        ? "Generating..."
-                        : `Generate with ${prompt.provider}`}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingPromptId(prompt.id);
-                        setPromptText(prompt.prompt_text);
-                      }}
-                      style={{ marginLeft: "5px" }}
-                      disabled={generating}
-                    >
-                      Edit Prompt
-                    </button>
+
+                {editingPromptId === prompt.id ? (
+                  <div className="slotmgr__prompt-edit">
+                    <textarea
+                      value={promptText}
+                      onChange={(e) => setPromptText(e.target.value)}
+                      rows={4}
+                    />
+                    <div className="slotmgr__prompt-actions">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--primary"
+                        onClick={() => handleSavePromptEdit(prompt.id)}
+                      >
+                        Save Prompt
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--ghost"
+                        onClick={() => setEditingPromptId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                ) : (
+                  <>
+                    <p className="slotmgr__prompt-text">{prompt.prompt_text}</p>
+                    <div className="slotmgr__prompt-actions">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--primary"
+                        onClick={() =>
+                          handleGenerateImage(prompt.provider, prompt.id)
+                        }
+                        disabled={generating || configured === null || !providerReady}
+                        title={
+                          configured !== null && !providerReady
+                            ? `${providerKey} is not configured on this deployment`
+                            : undefined
+                        }
+                      >
+                        {generating && generatingProvider === prompt.provider
+                          ? "Generating…"
+                          : `Generate with ${prompt.provider}`}
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--ghost"
+                        onClick={() => {
+                          setEditingPromptId(prompt.id);
+                          setPromptText(prompt.prompt_text);
+                        }}
+                        disabled={generating}
+                      >
+                        Edit Prompt
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

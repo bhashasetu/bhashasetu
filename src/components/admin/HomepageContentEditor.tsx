@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { HomepageMediaRow } from "./HomepageMediaRow";
 
-type ContentField = {
+export type ContentField = {
   id: string;
   field_key: string;
   content: string | null;
@@ -11,17 +13,22 @@ type ContentField = {
   status: string | null;
 };
 
-type MediaSlot = {
+export type MediaSlot = {
   id: string;
   slot_key: string;
   media_type: string;
   aspect_ratio: string | null;
   status: string | null;
-  slot_media_assignments?: { status: string | null }[] | null;
+  slot_media_assignments?:
+    | {
+        status: string | null;
+        media_asset?: { id: string; filename: string; title?: string | null } | null;
+      }[]
+    | null;
   generation_prompts?: { provider: string; model_name: string | null }[] | null;
 };
 
-type Section = {
+export type Section = {
   id: string;
   section_key: string;
   title: string | null;
@@ -135,6 +142,17 @@ export function HomepageContentEditor({
 
   const dirtyIds = Object.keys(values).filter((id) => values[id] !== baseline[id]);
   const dirty = dirtyIds.length > 0;
+
+  const router = useRouter();
+
+  // A media row saves itself (it's a file upload, not a text field the top
+  // bar batches), then announces success so the section list — read
+  // straight from the sections prop — refreshes with the new attachment.
+  useEffect(() => {
+    const onMediaSaved = () => router.refresh();
+    window.addEventListener("homepage-media-saved", onMediaSaved);
+    return () => window.removeEventListener("homepage-media-saved", onMediaSaved);
+  }, [router]);
 
   async function handleSave() {
     setSaving(true);
@@ -293,68 +311,16 @@ export function HomepageContentEditor({
             {slots.length > 0 && (
               <div className="hp-slots">
                 <h4 className="hp-slots__title">Media</h4>
-                <table className="admin-table hp-slot-table">
-                  <colgroup>
-                    <col style={{ width: "32%" }} />
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "14%" }} />
-                    <col style={{ width: "20%" }} />
-                    <col style={{ width: "12%" }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Slot</th>
-                      <th>Type</th>
-                      <th>Ratio</th>
-                      <th>Asset</th>
-                      <th>Source</th>
-                      <th aria-label="Actions" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {slots.map((slot) => {
-                      const assigned =
-                        (slot.slot_media_assignments ?? []).length > 0;
-                      const prompt = slot.generation_prompts?.[0];
-                      return (
-                        <tr key={slot.id}>
-                          <td className="hp-slot-name">
-                            {labelFor(slot.slot_key)}
-                          </td>
-                          <td>{slot.media_type}</td>
-                          <td>{slot.aspect_ratio ?? "\u2014"}</td>
-                          <td>
-                            <span
-                              className={
-                                assigned
-                                  ? "admin-pill admin-pill--published"
-                                  : "admin-pill admin-pill--draft"
-                              }
-                            >
-                              {assigned ? "Attached" : "Empty"}
-                            </span>
-                          </td>
-                          <td className="hp-slot-source">
-                            {prompt
-                              ? prompt.provider === "manual"
-                                ? "Approved asset"
-                                : "Upload or generate"
-                              : "Upload"}
-                          </td>
-                          <td className="hp-slots__action">
-                            <Link
-                              href={`/admin/pages/${pageId}/slots/${slot.id}`}
-                              className="admin-btn admin-btn--ghost"
-                            >
-                              {assigned ? "Replace" : "Add"}
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div className="hp-media-list">
+                  {slots.map((slot) => (
+                    <HomepageMediaRow
+                      key={slot.id}
+                      pageId={pageId}
+                      slot={slot}
+                      label={labelFor(slot.slot_key)}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </section>
