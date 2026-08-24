@@ -493,6 +493,12 @@
   align-items: start;
 }
 
+/* With no featured story the audio column would sit at 1.55fr of the band
+   and leave a dead gap to its right. */
+.sv-audio:only-child {
+  grid-column: 1 / -1;
+}
+
 .story-rail--audio {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

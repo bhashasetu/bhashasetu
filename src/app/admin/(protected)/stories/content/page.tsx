@@ -34,6 +34,7 @@ export default async function StoriesPageContent() {
       pageTitle={page.title}
       pageStatus={page.status}
       heading="Stories & Voices Content"
+      seo={page.seo}
       backHref="/admin/stories/content"
       sections={page.sections}
     />

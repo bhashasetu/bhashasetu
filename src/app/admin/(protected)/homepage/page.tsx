@@ -30,6 +30,7 @@ export default async function HomepageContentPage() {
       pageTitle={page.title}
       pageStatus={page.status}
       heading="Homepage Content"
+      seo={page.seo}
       backHref="/admin/homepage"
       sections={page.sections}
     />

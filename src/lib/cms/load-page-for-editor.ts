@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Section } from "@/components/admin/PageContentEditor";
+import type { PageSeo } from "@/components/admin/PageSeoCard";
 
 /**
  * Without generated Supabase types, a to-one embed (slot_media_assignments
@@ -17,6 +18,7 @@ export type EditablePage = {
   title: string;
   slug: string;
   status: string;
+  seo: PageSeo;
   sections: Section[];
 };
 
@@ -37,6 +39,8 @@ export async function loadPageForEditor(
     .select(
       `
       id, title, slug, status,
+      meta_title, meta_description, canonical_url,
+      og_title, og_description, og_image_slot_id, noindex, page_summary,
       page_sections(
         id, section_key, title, section_type, display_order, status,
         page_content(id, field_key, content, field_type, status),
@@ -62,6 +66,16 @@ export async function loadPageForEditor(
     title: page.title,
     slug: page.slug,
     status: page.status,
+    seo: {
+      meta_title: page.meta_title,
+      meta_description: page.meta_description,
+      canonical_url: page.canonical_url,
+      og_title: page.og_title,
+      og_description: page.og_description,
+      og_image_slot_id: page.og_image_slot_id,
+      noindex: page.noindex ?? false,
+      page_summary: page.page_summary,
+    },
     sections: (page.page_sections ?? []).map((s) => ({
       id: s.id,
       section_key: s.section_key,

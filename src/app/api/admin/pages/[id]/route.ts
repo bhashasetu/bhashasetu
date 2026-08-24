@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { pageSettingsInputSchema } from "@/lib/validation/schemas";
 
 export async function GET(
   request: Request,
@@ -48,12 +49,19 @@ export async function PUT(
 
   const supabase = adminCheck.supabase;
   const { user } = adminCheck;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  const parsed = pageSettingsInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid page settings", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
 
   const { data, error } = await supabase
     .from("pages")
     .update({
-      ...body,
+      ...parsed.data,
       updated_by: user.id,
     })
     .eq("id", id)

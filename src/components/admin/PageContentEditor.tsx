@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageMediaRow } from "./PageMediaRow";
+import { PageSeoCard, type PageSeo } from "./PageSeoCard";
 import {
   fieldRank,
   isLongField,
@@ -54,6 +55,7 @@ export function PageContentEditor({
   pageStatus,
   heading,
   backHref,
+  seo,
   sections,
 }: {
   pageId: string;
@@ -65,6 +67,7 @@ export function PageContentEditor({
   heading: string;
   /** Where the slot detail screen returns to. */
   backHref: string;
+  seo: PageSeo;
   sections: Section[];
 }) {
   const loaded = useMemo(() => {
@@ -183,6 +186,16 @@ export function PageContentEditor({
           </a>
         ))}
       </nav>
+
+      <PageSeoCard
+        pageId={pageId}
+        seo={seo}
+        slotOptions={ordered.flatMap((section) =>
+          (section.media_slots ?? [])
+            .filter((slot) => slot.media_type === "image")
+            .map((slot) => ({ id: slot.id, label: labelFor(slot.slot_key) }))
+        )}
+      />
 
       {ordered.map((section) => {
         const fields = [...(section.page_content ?? [])].sort(

@@ -82,6 +82,51 @@ export const storyStatusTransitionSchema = z.object({
   consent_confirmed: z.boolean().optional(),
 });
 
+export const pageTypeValues = [
+  "homepage",
+  "about",
+  "stories_voices",
+  "language_selection",
+  "heritage",
+  "custom",
+] as const;
+
+export const structuredDataValues = [
+  "WebPage",
+  "CollectionPage",
+  "AboutPage",
+  "FAQPage",
+] as const;
+
+/**
+ * Editable page settings, including the SEO/AEO fields (CLAUDE.md section 15).
+ *
+ * The PUT handler previously spread the request body straight into the
+ * update, so an admin request could write any column on the row — id
+ * included. Naming the fields keeps that surface to what the screens
+ * actually edit. `slug` is absent on purpose: it is the key the public
+ * routes and the sitemap look pages up by.
+ */
+export const pageSettingsInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(255),
+    description: z.string().trim().max(5000).nullable(),
+    page_type: z.enum(pageTypeValues),
+    status: z.enum(["draft", "published", "archived"]),
+    meta_title: z.string().trim().max(255).nullable(),
+    meta_description: z.string().trim().max(500).nullable(),
+    meta_keywords: z.string().trim().max(500).nullable(),
+    canonical_url: z.string().trim().url().max(500).nullable(),
+    og_title: z.string().trim().max(255).nullable(),
+    og_description: z.string().trim().max(500).nullable(),
+    og_image_slot_id: z.string().uuid().nullable(),
+    noindex: z.boolean(),
+    page_summary: z.string().trim().max(5000).nullable(),
+    structured_data_type: z.enum(structuredDataValues).nullable(),
+    last_reviewed_at: z.string().trim().max(40).nullable(),
+  })
+  .partial();
+
 export const aliasInputSchema = z.object({
   learning_entry_id: z.string().uuid(),
   alias: z.string().trim().min(1).max(500),
