@@ -22,6 +22,7 @@ export type MediaSlot = {
   slot_media_assignments?:
     | {
         status: string | null;
+        created_at?: string | null;
         media_asset?: { id: string; filename: string; title?: string | null } | null;
       }[]
     | null;

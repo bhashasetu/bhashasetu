@@ -37,6 +37,7 @@ export default async function HomepageContentPage() {
           id, slot_key, media_type, aspect_ratio, status,
           slot_media_assignments(
             status,
+            created_at,
             media_asset:media_assets(id, filename, title)
           ),
           generation_prompts(provider, model_name)
@@ -75,6 +76,7 @@ export default async function HomepageContentPage() {
       status: m.status,
       slot_media_assignments: (m.slot_media_assignments ?? []).map((a) => ({
         status: a.status,
+        created_at: a.created_at,
         media_asset: firstOrSelf(a.media_asset),
       })),
       generation_prompts: m.generation_prompts ?? [],

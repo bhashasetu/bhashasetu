@@ -26,10 +26,15 @@ export function HomepageMediaRow({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Mirror the public resolver: only a 'published' assignment counts as
-  // attached, so this matches what a visitor actually sees.
+  // Mirror the public resolver exactly: it takes the NEWEST published
+  // assignment. Taking the first match instead let this panel show a
+  // different image than the live page when a slot had more than one.
   const assignment =
-    slot.slot_media_assignments?.find((a) => a.status === "published") ?? null;
+    [...(slot.slot_media_assignments ?? [])]
+      .filter((a) => a.status === "published")
+      .sort((a, b) =>
+        String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))
+      )[0] ?? null;
   const asset = assignment?.media_asset;
   const prompt = slot.generation_prompts?.[0];
 

@@ -143,6 +143,22 @@ export async function POST(request: Request) {
   // Attach the asset to its slot. Without this the upload succeeds but the
   // slot stays empty, which is what made "upload" look broken.
   if (slot) {
+    // A slot holds one asset. Uploading a replacement previously left the
+    // old assignment published too, so the slot ended up with several — and
+    // the Back Office (first match) could then disagree with the public page
+    // (newest match) about which image the slot actually shows.
+    const { error: supersedeError } = await check.supabase
+      .from("slot_media_assignments")
+      .update({ status: "archived", updated_by: check.user.id })
+      .eq("slot_id", slot.id)
+      .eq("status", "published");
+
+    if (supersedeError) {
+      return serverError(
+        `Could not replace the slot's existing media: ${supersedeError.message}`
+      );
+    }
+
     const { error: assignError } = await check.supabase
       .from("slot_media_assignments")
       .insert({
