@@ -10,6 +10,8 @@ export const entryStatusValues = [
   "archived",
 ] as const;
 export const mediaStatusValues = ["draft", "published", "archived"] as const;
+export const storyStatusValues = ["draft", "published", "archived"] as const;
+export const storyFormatValues = ["interview", "audio", "song"] as const;
 
 export const languageInputSchema = z.object({
   code: z.string().trim().min(1).max(10),
@@ -37,6 +39,47 @@ export const learningEntryInputSchema = z.object({
   region: z.string().trim().max(255).optional().nullable(),
   speaker_notes: z.string().trim().max(5000).optional().nullable(),
   display_order: z.number().int().optional(),
+});
+
+/**
+ * A Stories & Voices record. Mirrors the stories table's CHECK constraints,
+ * so a value the form accepts is a value the database accepts.
+ *
+ * consent_confirmed is not settable here: it is a deliberate act with its own
+ * endpoint, not something a bulk field update can flip on by accident.
+ */
+export const storyInputSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens"),
+  title: z.string().trim().min(1).max(500),
+  format: z.enum(storyFormatValues),
+  speaker_name: z.string().trim().max(255).optional().nullable(),
+  speaker_role: z.string().trim().max(255).optional().nullable(),
+  speaker_place: z.string().trim().max(255).optional().nullable(),
+  summary: z.string().trim().max(5000).optional().nullable(),
+  transcript: z.string().trim().max(100000).optional().nullable(),
+  language_id: z.string().uuid().optional().nullable(),
+  theme: z.string().trim().max(100).optional().nullable(),
+  age_group: z.string().trim().max(50).optional().nullable(),
+  thumbnail_asset_id: z.string().uuid().optional().nullable(),
+  media_asset_id: z.string().uuid().optional().nullable(),
+  duration_seconds: z.number().int().min(0).max(86400).optional().nullable(),
+  recorded_on: z.string().trim().max(20).optional().nullable(),
+  recorded_by: z.string().trim().max(255).optional().nullable(),
+  featured: z.boolean().optional(),
+  display_order: z.number().int().optional(),
+  meta_title: z.string().trim().max(255).optional().nullable(),
+  meta_description: z.string().trim().max(500).optional().nullable(),
+});
+
+export const storyStatusTransitionSchema = z.object({
+  status: z.enum(storyStatusValues),
+  /** Recorded consent from the speaker; publishing is refused without it. */
+  consent_confirmed: z.boolean().optional(),
 });
 
 export const aliasInputSchema = z.object({

@@ -914,3 +914,135 @@
   gap: var(--spacing-sm);
   margin-top: 4px;
 }
+
+/* ============================================================
+   STORIES & INTERVIEWS (CLAUDE.md section 13, module 7)
+   Reuses the hp-* editor shell; these are the pieces that are
+   specific to story records.
+   ============================================================ */
+
+.admin-shell .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Story media rows mirror .hp-media so a story attachment and a page slot
+   attachment look and behave the same way. */
+.story-media {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.story-media:first-child { border-top: none; }
+
+.story-media__preview { width: 96px; }
+
+.story-media__body { min-width: 0; }
+
+.story-media__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.story-media__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.story-media__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.story-media__hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.story-media__status {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.story-media__status--ok { color: var(--color-success); }
+.story-media__status--error { color: #B42318; }
+
+/* Story list table */
+.story-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.story-table th,
+.story-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text-dark);
+}
+
+.story-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.story-table__thumb {
+  width: 72px;
+}
+
+.story-table__thumb .admin-preview {
+  width: 72px;
+}
+
+.story-table td .admin-pill {
+  margin-left: 6px;
+}
+
+/* Consent and publishing */
+.hp-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  font-size: 13px;
+  color: var(--color-text-dark);
+  cursor: pointer;
+}
+
+.hp-check input {
+  margin-top: 2px;
+}
+
+.story-consent {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.story-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}

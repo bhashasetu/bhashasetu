@@ -57,6 +57,14 @@ export async function POST(request: Request) {
     }
   }
 
+  // A slotless upload (a story thumbnail, say) still wants the same fitting
+  // treatment, so it names the ratio it needs directly.
+  const ratioRaw = formData.get("aspect_ratio");
+  const requestedRatio =
+    typeof ratioRaw === "string" && /^\d{1,2}:\d{1,2}$/.test(ratioRaw)
+      ? ratioRaw
+      : null;
+
   let body: Buffer = Buffer.from(await file.arrayBuffer());
   let contentType = file.type;
   let width: number | null = null;
@@ -68,7 +76,7 @@ export async function POST(request: Request) {
     try {
       const conformed = await conformImageToSlot(
         body,
-        slot?.aspect_ratio ?? null,
+        slot?.aspect_ratio ?? requestedRatio,
         file.type
       );
       body = conformed.buffer;
@@ -131,9 +139,22 @@ export async function POST(request: Request) {
   }
 
   if (mediaType === "audio") {
+    // getSignedMediaUrl refuses audio whose consent_status is not
+    // 'obtained' or 'not_applicable'. This row previously left it NULL, so
+    // every uploaded clip resolved to null however it was linked. The
+    // uploader states the consent position; 'pending' keeps the clip
+    // unplayable until someone confirms it, which is the safe default.
+    const consentRaw = formData.get("consent_status");
+    const consentStatus =
+      typeof consentRaw === "string" &&
+      ["obtained", "not_applicable", "pending", "refused"].includes(consentRaw)
+        ? consentRaw
+        : "pending";
+
     const { error: audioError } = await check.supabase.from("audio_metadata").insert({
       media_asset_id: mediaAsset.id,
       playback_permission: "public",
+      consent_status: consentStatus,
     });
     if (audioError) {
       return serverError(`Media uploaded but audio_metadata creation failed: ${audioError.message}`);
@@ -188,8 +209,35 @@ export async function POST(request: Request) {
     }
   }
 
+  // A slotless asset is invisible to the public until it is published:
+  // public_read_published_media and the storage policy both gate on status.
+  // The slot branch above publishes as part of attaching; a caller that
+  // links the asset itself (a story thumbnail) asks for it explicitly.
+  const shouldPublish = !slot && formData.get("publish") === "1";
+
+  if (shouldPublish) {
+    const { error: publishError } = await check.supabase
+      .from("media_assets")
+      .update({ status: "published", published_at: new Date().toISOString() })
+      .eq("id", mediaAsset.id);
+
+    if (publishError) {
+      return serverError(
+        `Media uploaded but could not be published: ${publishError.message}`
+      );
+    }
+  }
+
   return NextResponse.json(
-    { data: { ...mediaAsset, width, height }, adjusted },
+    {
+      data: {
+        ...mediaAsset,
+        width,
+        height,
+        status: shouldPublish ? "published" : mediaAsset.status,
+      },
+      adjusted,
+    },
     { status: 201 }
   );
 }

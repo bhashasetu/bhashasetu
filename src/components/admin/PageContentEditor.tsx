@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { HomepageMediaRow } from "./HomepageMediaRow";
+import { PageMediaRow } from "./PageMediaRow";
+import {
+  fieldRank,
+  isLongField,
+  labelFor,
+  supportsAccent,
+  surfaceFor,
+} from "@/lib/cms/page-editor-config";
 
 export type ContentField = {
   id: string;
@@ -40,86 +47,24 @@ export type Section = {
   media_slots: MediaSlot[] | null;
 };
 
-/**
- * Which surface each section appears on, so an editor can tell at a glance
- * whether a change affects the desktop site, the mobile app, or both.
- */
-const SURFACE: Record<string, "Desktop" | "Mobile" | "Both"> = {
-  hero: "Desktop",
-  wro_project: "Both",
-  learn_explore: "Both",
-  voices_inspire: "Desktop",
-  my_bhasha_setu: "Both",
-  mobile_hero: "Mobile",
-  todays_word: "Mobile",
-  stories_voices: "Mobile",
-};
-
-/** Human labels for field keys; unknown keys fall back to a de-slugged form. */
-const FIELD_LABELS: Record<string, string> = {
-  hero_image: "Hero image",
-  mobile_hero_image: "Hero image (mobile)",
-  wro_video: "WRO video",
-  robot_image: "Robot image",
-  card_warli_image: "Warli card image",
-  card_katkari_image: "Katkari card image",
-  card_play_image: "Play & Learn card image",
-  card_stories_image: "Stories card image",
-  testimonial_1_image: "Testimonial 1 portrait",
-  testimonial_2_image: "Testimonial 2 portrait",
-  testimonial_3_image: "Testimonial 3 portrait",
-  todays_word_audio: "Pronunciation audio",
-  todays_word_image: "Artwork",
-  heading: "Heading",
-  description: "Description",
-  title: "Title",
-  cta_text: "Call-to-action label",
-  greeting: "Greeting",
-  label: "Label",
-  native_text: "Native text (Warli / Katkari)",
-  english_meaning: "English meaning",
-  hindi_meaning: "Hindi meaning",
-};
-
-function labelFor(key: string) {
-  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
-  return key
-    .replace(/_/g, " ")
-    .replace(/\b(\w)/g, (m) => m.toUpperCase())
-    .replace(/\bCta\b/, "CTA");
-}
-
-/** Reading order for a section's fields; anything unlisted follows, sorted. */
-const FIELD_ORDER = [
-  "greeting",
-  "label",
-  "title",
-  "heading",
-  "description",
-  "native_text",
-  "english_meaning",
-  "hindi_meaning",
-  "cta_text",
-];
-
-function fieldRank(key: string) {
-  const i = FIELD_ORDER.indexOf(key);
-  return i === -1 ? FIELD_ORDER.length : i;
-}
-
-function isLongField(key: string) {
-  return key === "description" || key.endsWith("_description");
-}
-
-export function HomepageContentEditor({
+export function PageContentEditor({
   pageId,
+  pageSlug,
   pageTitle,
   pageStatus,
+  heading,
+  backHref,
   sections,
 }: {
   pageId: string;
+  /** Selects this page's surface labels; see SURFACE_BY_PAGE. */
+  pageSlug: string;
   pageTitle: string;
   pageStatus: string;
+  /** Screen heading, e.g. "Homepage Content". */
+  heading: string;
+  /** Where the slot detail screen returns to. */
+  backHref: string;
   sections: Section[];
 }) {
   const loaded = useMemo(() => {
@@ -151,8 +96,8 @@ export function HomepageContentEditor({
   // straight from the sections prop — refreshes with the new attachment.
   useEffect(() => {
     const onMediaSaved = () => router.refresh();
-    window.addEventListener("homepage-media-saved", onMediaSaved);
-    return () => window.removeEventListener("homepage-media-saved", onMediaSaved);
+    window.addEventListener("page-media-saved", onMediaSaved);
+    return () => window.removeEventListener("page-media-saved", onMediaSaved);
   }, [router]);
 
   async function handleSave() {
@@ -192,7 +137,7 @@ export function HomepageContentEditor({
       {/* Sticky so Save is reachable from anywhere on a long page. */}
       <div className="hp-bar">
         <div className="hp-bar__text">
-          <h2 className="hp-bar__title">Homepage Content</h2>
+          <h2 className="hp-bar__title">{heading}</h2>
           <p className="hp-bar__sub">
             {pageTitle}
             <span className={`admin-pill admin-pill--${pageStatus}`}>
@@ -248,7 +193,7 @@ export function HomepageContentEditor({
         const slots = [...(section.media_slots ?? [])].sort(
           (a, b) => (a.slot_key > b.slot_key ? 1 : -1)
         );
-        const surface = SURFACE[section.section_key] ?? "Both";
+        const surface = surfaceFor(pageSlug, section.section_key);
 
         return (
           <section
@@ -297,7 +242,7 @@ export function HomepageContentEditor({
                           }
                         />
                       )}
-                      {field.field_key === "heading" && (
+                      {supportsAccent(field.field_key) && (
                         <p className="hp-row__hint">
                           Wrap a word in *asterisks* to show it in the accent
                           gold, as the approved design does.
@@ -314,11 +259,12 @@ export function HomepageContentEditor({
                 <h4 className="hp-slots__title">Media</h4>
                 <div className="hp-media-list">
                   {slots.map((slot) => (
-                    <HomepageMediaRow
+                    <PageMediaRow
                       key={slot.id}
                       pageId={pageId}
                       slot={slot}
                       label={labelFor(slot.slot_key)}
+                      backHref={backHref}
                     />
                   ))}
                 </div>

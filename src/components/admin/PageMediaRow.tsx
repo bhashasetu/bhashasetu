@@ -4,22 +4,25 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import Link from "next/link";
 import { AdminMediaPreview } from "./AdminMediaPreview";
-import type { MediaSlot } from "./HomepageContentEditor";
+import type { MediaSlot } from "./PageContentEditor";
 
 /**
- * One media slot row inside Homepage Content: a live preview of whatever is
+ * One media slot row inside a page editor: a live preview of whatever is
  * currently attached, and an inline uploader that stages a file until the
  * editor explicitly clicks Save — the same edit-then-save pattern the text
  * fields above it use, rather than uploading the instant a file is chosen.
  */
-export function HomepageMediaRow({
+export function PageMediaRow({
   pageId,
   slot,
   label,
+  backHref,
 }: {
   pageId: string;
   slot: MediaSlot;
   label: string;
+  /** Where the slot detail screen should return to. */
+  backHref: string;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,7 +74,7 @@ export function HomepageMediaRow({
       setFile(null);
       // The slot list lives in the parent server component's props; refresh
       // it so the new preview and Attached status appear without a reload.
-      window.dispatchEvent(new CustomEvent("homepage-media-saved"));
+      window.dispatchEvent(new CustomEvent("page-media-saved"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -131,7 +134,9 @@ export function HomepageMediaRow({
           </button>
           {prompt && (
             <Link
-              href={`/admin/pages/${pageId}/slots/${slot.id}`}
+              href={`/admin/pages/${pageId}/slots/${slot.id}?back=${encodeURIComponent(
+                backHref
+              )}`}
               className="admin-btn admin-btn--ghost"
             >
               {prompt.provider === "manual" ? "Advanced" : "Generate with AI"}

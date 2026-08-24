@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MediaSlotManager } from "@/components/admin/MediaSlotManager";
 
@@ -40,6 +40,17 @@ export default function SlotDetailPage({
 }) {
   const [paramData, setParamData] = useState<{ id: string; slotId: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // This screen is reached from more than one page editor now, so the caller
+  // says where to return to. The value is only ever used as an internal path:
+  // anything not starting with a single "/admin/" is discarded, so a crafted
+  // link cannot turn this button into an off-site redirect.
+  const backParam = searchParams.get("back");
+  const backHref =
+    backParam && /^\/admin\/[A-Za-z0-9/_-]*$/.test(backParam)
+      ? backParam
+      : "/admin/homepage";
 
   const [slot, setSlot] = useState<MediaSlot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,8 +107,8 @@ export default function SlotDetailPage({
       <div className="admin-card">
         <h2>Error</h2>
         <p className="admin-page-intro">{error || "Slot not found"}</p>
-        <Link href="/admin/homepage" className="admin-btn admin-btn--ghost">
-          ← Back to Homepage Content
+        <Link href={backHref} className="admin-btn admin-btn--ghost">
+          ← Back
         </Link>
       </div>
     );
@@ -112,8 +123,8 @@ export default function SlotDetailPage({
           <h2 className="hp-bar__title">Manage Media Slot</h2>
           <p className="hp-bar__sub">{labelFor(slot.slot_key)}</p>
         </div>
-        <Link href="/admin/homepage" className="admin-btn admin-btn--ghost">
-          ← Back to Homepage Content
+        <Link href={backHref} className="admin-btn admin-btn--ghost">
+          ← Back
         </Link>
       </div>
 
