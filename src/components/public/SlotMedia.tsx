@@ -1,3 +1,5 @@
+import { parseVideoUrl } from "@/lib/media/video-embed";
+
 /**
  * Server-rendered counterpart to MediaSlotImage.
  *
@@ -21,6 +23,7 @@ function ratioToPadding(aspectRatio?: string | null): string | undefined {
 
 export function SlotMedia({
   url,
+  sourceUrl,
   altText,
   aspectRatio,
   label,
@@ -30,6 +33,12 @@ export function SlotMedia({
 }: {
   /** Resolved signed URL, or null while the slot is still empty. */
   url: string | null;
+  /**
+   * For a hosted video (YouTube/Vimeo) there is no stored object; this is the
+   * address it lives at. Storage on this plan caps a file at 50 MB, so a
+   * full-length interview is linked rather than uploaded.
+   */
+  sourceUrl?: string | null;
   altText?: string;
   aspectRatio?: string | null;
   /** Short human label for the empty state, e.g. "Warli illustration". */
@@ -52,6 +61,23 @@ export function SlotMedia({
   };
 
   const frameClass = className ? `media-slot ${className}` : "media-slot";
+
+  const embed = sourceUrl ? parseVideoUrl(sourceUrl) : null;
+  if (embed) {
+    return (
+      <div className={frameClass} style={frameStyle}>
+        <iframe
+          src={embed.embedUrl}
+          title={altText || label || "Video"}
+          style={{ ...fillStyle, border: 0 }}
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
 
   if (!url) {
     return (

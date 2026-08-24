@@ -4,6 +4,7 @@ import { adminCheckFailureResponse, badRequest, serverError } from "@/lib/api/re
 import { validateMediaUpload } from "@/lib/media/validate-upload";
 import { bucketForMediaType, buildStoragePath } from "@/lib/media/storage-paths";
 import { conformImageToSlot } from "@/lib/media/conform-image";
+import { createAndAttachAsset } from "@/lib/media/attach-asset";
 
 export async function POST(request: Request) {
   const check = await requireAdmin();
@@ -23,6 +24,17 @@ export async function POST(request: Request) {
   }
 
   const { mediaType } = validation;
+
+  // Audio and video no longer come this way. A Vercel serverless function
+  // caps request bodies at 4.5 MB, so a recording posted here was rejected by
+  // the platform before this handler ran; the browser uploads those straight
+  // to storage instead (see /api/admin/media/upload-url).
+  if (mediaType !== "image") {
+    return badRequest(
+      "Recordings are uploaded directly to storage. Reload the Back Office and try again."
+    );
+  }
+
   const bucket = bucketForMediaType(mediaType);
 
   // When the upload targets a media slot, look the slot up first so the image
@@ -66,7 +78,9 @@ export async function POST(request: Request) {
       : null;
 
   let body: Buffer = Buffer.from(await file.arrayBuffer());
-  let contentType = file.type;
+  // The validator's type, not the browser's: a browser that reported no type
+  // at all still gets the extension's canonical one.
+  let contentType = validation.mimeType;
   let width: number | null = null;
   let height: number | null = null;
   let adjusted = false;
@@ -109,135 +123,39 @@ export async function POST(request: Request) {
   const altText = formData.get("alt_text");
   const caption = formData.get("caption");
   const credit = formData.get("credit");
-
-  const { data: mediaAsset, error: dbError } = await check.supabase
-    .from("media_assets")
-    .insert({
-      filename: file.name,
-      mime_type: contentType,
-      file_size: body.byteLength,
-      width,
-      height,
-      storage_bucket: bucket,
-      storage_path: storagePath,
-      media_type: mediaType,
-      title: typeof title === "string" && title ? title : null,
-      description: typeof description === "string" && description ? description : null,
-      alt_text: typeof altText === "string" && altText ? altText : null,
-      caption: typeof caption === "string" && caption ? caption : null,
-      credit: typeof credit === "string" && credit ? credit : null,
-      status: "draft",
-      created_by: check.user.id,
-    })
-    .select()
-    .single();
-
-  if (dbError) {
-    // Roll back the uploaded object if the DB insert failed.
-    await check.supabase.storage.from(bucket).remove([storagePath]);
-    return serverError(dbError.message);
-  }
-
-  if (mediaType === "audio") {
-    // getSignedMediaUrl refuses audio whose consent_status is not
-    // 'obtained' or 'not_applicable'. This row previously left it NULL, so
-    // every uploaded clip resolved to null however it was linked. The
-    // uploader states the consent position; 'pending' keeps the clip
-    // unplayable until someone confirms it, which is the safe default.
-    const consentRaw = formData.get("consent_status");
-    const consentStatus =
-      typeof consentRaw === "string" &&
-      ["obtained", "not_applicable", "pending", "refused"].includes(consentRaw)
-        ? consentRaw
-        : "pending";
-
-    const { error: audioError } = await check.supabase.from("audio_metadata").insert({
-      media_asset_id: mediaAsset.id,
-      playback_permission: "public",
-      consent_status: consentStatus,
-    });
-    if (audioError) {
-      return serverError(`Media uploaded but audio_metadata creation failed: ${audioError.message}`);
-    }
-  }
-
-  // Attach the asset to its slot. Without this the upload succeeds but the
-  // slot stays empty, which is what made "upload" look broken.
-  if (slot) {
-    // A slot holds one asset. Uploading a replacement previously left the
-    // old assignment published too, so the slot ended up with several — and
-    // the Back Office (first match) could then disagree with the public page
-    // (newest match) about which image the slot actually shows.
-    const { error: supersedeError } = await check.supabase
-      .from("slot_media_assignments")
-      .update({ status: "archived", updated_by: check.user.id })
-      .eq("slot_id", slot.id)
-      .eq("status", "published");
-
-    if (supersedeError) {
-      return serverError(
-        `Could not replace the slot's existing media: ${supersedeError.message}`
-      );
-    }
-
-    const { error: assignError } = await check.supabase
-      .from("slot_media_assignments")
-      .insert({
-        slot_id: slot.id,
-        media_asset_id: mediaAsset.id,
-        status: "published",
-        created_by: check.user.id,
-      });
-
-    if (assignError) {
-      return serverError(
-        `Media uploaded but could not be attached to the slot: ${assignError.message}`
-      );
-    }
-
-    // A slot asset must be published for the public page to read it
-    // (public_read_published_media gates on status).
-    const { error: publishError } = await check.supabase
-      .from("media_assets")
-      .update({ status: "published", published_at: new Date().toISOString() })
-      .eq("id", mediaAsset.id);
-
-    if (publishError) {
-      return serverError(
-        `Media attached but could not be published: ${publishError.message}`
-      );
-    }
-  }
-
-  // A slotless asset is invisible to the public until it is published:
-  // public_read_published_media and the storage policy both gate on status.
-  // The slot branch above publishes as part of attaching; a caller that
-  // links the asset itself (a story thumbnail) asks for it explicitly.
+  const slotIdForAttach = slot?.id ?? null;
   const shouldPublish = !slot && formData.get("publish") === "1";
 
-  if (shouldPublish) {
-    const { error: publishError } = await check.supabase
-      .from("media_assets")
-      .update({ status: "published", published_at: new Date().toISOString() })
-      .eq("id", mediaAsset.id);
+  const attached = await createAndAttachAsset(
+    check.supabase,
+    check.user.id,
+    {
+      filename: file.name,
+      mimeType: contentType,
+      fileSize: body.byteLength,
+      mediaType,
+      storageBucket: bucket,
+      storagePath: storagePath,
+      sourceType: "upload",
+      width,
+      height,
+      title: typeof title === "string" ? title : null,
+      description: typeof description === "string" ? description : null,
+      altText: typeof altText === "string" ? altText : null,
+      caption: typeof caption === "string" ? caption : null,
+      credit: typeof credit === "string" ? credit : null,
+    },
+    { slotId: slotIdForAttach, publish: shouldPublish }
+  );
 
-    if (publishError) {
-      return serverError(
-        `Media uploaded but could not be published: ${publishError.message}`
-      );
-    }
+  if (!attached.ok) {
+    // Roll back the uploaded object so a failed insert does not orphan it.
+    await check.supabase.storage.from(bucket).remove([storagePath]);
+    return serverError(attached.error);
   }
 
   return NextResponse.json(
-    {
-      data: {
-        ...mediaAsset,
-        width,
-        height,
-        status: shouldPublish ? "published" : mediaAsset.status,
-      },
-      adjusted,
-    },
+    { data: { ...attached.asset, width, height }, adjusted },
     { status: 201 }
   );
 }

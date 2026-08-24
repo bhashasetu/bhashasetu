@@ -4,16 +4,21 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { AdminMediaPreview } from "./AdminMediaPreview";
 import { ImageCropper } from "./ImageCropper";
+import { uploadMediaDirect, attachVideoLink } from "@/lib/media/direct-upload";
+import { MEDIA_UPLOAD_LIMITS } from "@/lib/media/validate-upload";
+
+const MAX_UPLOAD_MB = Math.round(
+  MEDIA_UPLOAD_LIMITS.video.maxFileSizeBytes / (1024 * 1024)
+);
 
 /**
  * Attaches one media asset to a story.
  *
- * This is the same pipeline the page media slots use — the shared upload
- * route, so the same validation, the same sharp conform-to-ratio, the same
- * metadata columns — with the crop step routed through the existing
- * ImageCropper. The only difference is that there is no slot to assign to,
- * so the route is asked to publish the asset and hands back its id for the
- * story row to hold.
+ * Images go through the shared server route, so they get the same sharp
+ * fit-to-ratio treatment as page slots, with the existing ImageCropper in
+ * front. Recordings go straight from the browser to Supabase Storage — a
+ * serverless request body cannot carry a video — or, for anything longer than
+ * the storage plan allows, are attached as a YouTube or Vimeo link instead.
  */
 export function StoryMediaField({
   label,
@@ -26,7 +31,7 @@ export function StoryMediaField({
 }: {
   label: string;
   hint?: string;
-  /** "image" routes through the cropper; "recording" uploads as-is. */
+  /** "image" routes through the cropper; "recording" is audio or video. */
   kind: "image" | "recording";
   /** Target ratio for images; ignored for recordings. */
   aspectRatio?: string;
@@ -36,25 +41,26 @@ export function StoryMediaField({
 }) {
   const [pending, setPending] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [link, setLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function upload(file: File) {
-    setBusy(true);
+  function reset() {
     setError(null);
     setNotice(null);
+  }
+
+  async function uploadImage(file: File) {
+    setBusy(true);
+    reset();
 
     const form = new FormData();
     form.append("file", file);
-    if (kind === "image" && aspectRatio) form.append("aspect_ratio", aspectRatio);
+    if (aspectRatio) form.append("aspect_ratio", aspectRatio);
     // No slot to attach to, so the asset has to be published explicitly or
     // the public page cannot read it.
     form.append("publish", "1");
-    if (kind === "recording") {
-      // A story is only publishable once consent is recorded, and the same
-      // consent covers the recording itself.
-      form.append("consent_status", "obtained");
-    }
 
     try {
       const res = await fetch("/api/admin/media/upload", {
@@ -78,30 +84,67 @@ export function StoryMediaField({
     }
   }
 
+  async function uploadRecording(file: File) {
+    setBusy(true);
+    reset();
+    setNotice("Uploading… large recordings can take a while.");
+
+    const result = await uploadMediaDirect(file, {
+      publish: true,
+      // A story is only publishable once consent is recorded, and the same
+      // consent covers the recording itself.
+      consentStatus: "obtained",
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      setNotice(null);
+    } else {
+      onChange(result.asset.id);
+      setNotice("Uploaded.");
+    }
+    setBusy(false);
+  }
+
+  async function saveLink() {
+    if (!link.trim()) return;
+    setBusy(true);
+    reset();
+
+    const result = await attachVideoLink(link.trim());
+    if (!result.ok) {
+      setError(result.error);
+    } else {
+      onChange(result.asset.id);
+      setNotice("Video link attached.");
+      setLink("");
+      setLinkOpen(false);
+    }
+    setBusy(false);
+  }
+
   function handleChoose(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    setError(null);
-    setNotice(null);
+    reset();
 
-    if (kind === "image" && aspectRatio) {
-      setPending(file);
+    if (kind === "image") {
+      if (aspectRatio) {
+        setPending(file);
+        return;
+      }
+      void uploadImage(file);
       return;
     }
-    void upload(file);
+    void uploadRecording(file);
   }
 
   return (
     <div className="story-media">
       <div className="story-media__preview">
         {assetId ? (
-          <AdminMediaPreview
-            key={assetId}
-            assetId={assetId}
-            mediaType={kind === "image" ? "image" : "audio"}
-            label={label}
-          />
+          <AdminMediaPreview key={assetId} assetId={assetId} label={label} />
         ) : (
           <div className="admin-preview admin-preview--empty">
             <span>{label}</span>
@@ -129,6 +172,20 @@ export function StoryMediaField({
             onChange={handleChoose}
             disabled={disabled || busy}
           />
+          {kind === "recording" && (
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost"
+              onClick={() => {
+                setLinkOpen((o) => !o);
+                reset();
+              }}
+              aria-expanded={linkOpen}
+              disabled={disabled || busy}
+            >
+              {linkOpen ? "Cancel link" : "Use a video link"}
+            </button>
+          )}
           {assetId && (
             <button
               type="button"
@@ -144,8 +201,40 @@ export function StoryMediaField({
           )}
         </div>
 
+        {linkOpen && (
+          <div className="story-media__link">
+            <label htmlFor={`link-${label}`} className="visually-hidden">
+              YouTube or Vimeo address
+            </label>
+            <input
+              id={`link-${label}`}
+              type="url"
+              inputMode="url"
+              placeholder="https://www.youtube.com/watch?v=…"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              disabled={busy}
+            />
+            <button
+              type="button"
+              className="admin-btn admin-btn--primary"
+              onClick={saveLink}
+              disabled={busy || !link.trim()}
+            >
+              Attach
+            </button>
+          </div>
+        )}
+
         {hint && <p className="story-media__hint">{hint}</p>}
-        {busy && <p className="story-media__status">Uploading…</p>}
+        {kind === "recording" && (
+          <p className="story-media__hint">
+            Files up to {MAX_UPLOAD_MB} MB upload directly. For a full-length
+            interview, put it on YouTube or Vimeo and paste the link — it plays
+            the same way and costs the project nothing to serve.
+          </p>
+        )}
+        {busy && <p className="story-media__status">Working…</p>}
         {notice && (
           <p className="story-media__status story-media__status--ok">{notice}</p>
         )}
@@ -158,7 +247,7 @@ export function StoryMediaField({
         <ImageCropper
           file={pending}
           aspectRatio={aspectRatio}
-          onConfirm={(cropped) => void upload(cropped)}
+          onConfirm={(cropped) => void uploadImage(cropped)}
           onCancel={() => setPending(null)}
         />
       )}

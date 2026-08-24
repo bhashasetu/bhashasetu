@@ -1046,3 +1046,56 @@
   gap: var(--spacing-sm);
   margin-top: var(--spacing-md);
 }
+
+/* ============================================================
+   VIDEO LINKS (YouTube / Vimeo)
+   Storage caps a file at 50 MB on this plan, so a full-length
+   interview is linked rather than uploaded.
+   ============================================================ */
+
+.story-media__link,
+.slotmgr__linkrow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.story-media__link input[type="url"],
+.slotmgr__linkrow input[type="url"] {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text-dark);
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.story-media__link input[type="url"]:focus-visible,
+.slotmgr__linkrow input[type="url"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* A hosted video has no thumbnail to sign, so the preview says what it is. */
+.admin-preview--link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 16 / 9;
+  color: var(--color-primary);
+  background: var(--color-bg-light);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.admin-preview__linktext {
+  font-size: 11px;
+  font-weight: 600;
+}

@@ -17,11 +17,18 @@ const SIGNED_URL_EXPIRY_SECONDS = 60 * 60; // 60 minutes
  * the page with status = 'published' and are resolving slots belonging to it,
  * and the RLS policies enforce the same rule independently.
  */
+export type ResolvedSlotMedia = {
+  /** Signed URL for a stored object, null for a hosted video. */
+  url: string | null;
+  /** Address of a hosted video (YouTube/Vimeo), null for a stored object. */
+  sourceUrl: string | null;
+};
+
 export async function resolveSlotUrls(
   supabase: SupabaseClient,
   slotIds: string[]
-): Promise<Map<string, string>> {
-  const resolved = new Map<string, string>();
+): Promise<Map<string, ResolvedSlotMedia>> {
+  const resolved = new Map<string, ResolvedSlotMedia>();
   const ids = [...new Set(slotIds.filter(Boolean))];
   if (ids.length === 0) return resolved;
 
@@ -46,7 +53,7 @@ export async function resolveSlotUrls(
 
   const { data: assets } = await supabase
     .from("media_assets")
-    .select("id, storage_bucket, storage_path, status")
+    .select("id, storage_bucket, storage_path, status, source_type, source_url")
     .in("id", [...new Set(assetIdBySlot.values())])
     .eq("status", "published");
 
@@ -54,9 +61,11 @@ export async function resolveSlotUrls(
 
   const assetById = new Map(assets.map((a) => [a.id, a]));
 
-  // createSignedUrls is per-bucket, so group the paths before signing.
+  // createSignedUrls is per-bucket, so group the paths before signing. A
+  // hosted video has no object to sign and is skipped here.
   const pathsByBucket = new Map<string, string[]>();
   for (const asset of assets) {
+    if (!asset.storage_bucket || !asset.storage_path) continue;
     const paths = pathsByBucket.get(asset.storage_bucket) ?? [];
     paths.push(asset.storage_path);
     pathsByBucket.set(asset.storage_bucket, paths);
@@ -79,10 +88,16 @@ export async function resolveSlotUrls(
   for (const [slotId, assetId] of assetIdBySlot) {
     const asset = assetById.get(assetId);
     if (!asset) continue;
+
+    if (asset.source_type === "external" && asset.source_url) {
+      resolved.set(slotId, { url: null, sourceUrl: asset.source_url });
+      continue;
+    }
+
     const url = signedByBucketPath.get(
       `${asset.storage_bucket}:${asset.storage_path}`
     );
-    if (url) resolved.set(slotId, url);
+    if (url) resolved.set(slotId, { url, sourceUrl: null });
   }
 
   return resolved;

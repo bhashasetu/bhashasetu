@@ -131,7 +131,7 @@ export default async function StoriesPage({
     featured?.thumbnail_asset_id ?? null,
   ]);
 
-  const slotUrl = (slot?: { id: string }) =>
+  const slotMedia = (slot?: { id: string }) =>
     slot ? slotUrls.get(slot.id) ?? null : null;
   const assetUrl = (id: string | null) => (id ? assetUrls.get(id) ?? null : null);
 
@@ -190,7 +190,8 @@ export default async function StoriesPage({
         <section className="sv-hero">
           <div className="sv-hero__media">
             <SlotMedia
-              url={slotUrl(heroSlot)}
+              url={slotMedia(heroSlot)?.url ?? null}
+              sourceUrl={slotMedia(heroSlot)?.sourceUrl ?? null}
               altText="Warli and Katkari community members"
               aspectRatio={heroSlot?.aspect_ratio ?? "2:1"}
               label="Community photograph"
@@ -402,7 +403,8 @@ export default async function StoriesPage({
             {studentSlots.map((slot, i) => (
               <figure className="sv-team__photo" key={slot?.id ?? i}>
                 <SlotMedia
-                  url={slotUrl(slot)}
+                  url={slotMedia(slot)?.url ?? null}
+                  sourceUrl={slotMedia(slot)?.sourceUrl ?? null}
                   altText={findContent(teamSection, `photo_${i + 1}_caption`) ?? ""}
                   aspectRatio={slot?.aspect_ratio ?? "4:3"}
                   label="Field photograph"

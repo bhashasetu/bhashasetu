@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import Link from "next/link";
 import { AdminMediaPreview } from "./AdminMediaPreview";
+import { uploadMediaDirect, shouldUploadDirect } from "@/lib/media/direct-upload";
 import type { MediaSlot } from "./PageContentEditor";
 
 /**
@@ -52,6 +53,22 @@ export function PageMediaRow({
     setSaving(true);
     setError(null);
     setNotice(null);
+
+    // A recording skips the server route entirely: a Vercel serverless
+    // function rejects request bodies over 4.5 MB before the handler runs,
+    // which is why the WRO video slot could never be filled.
+    if (shouldUploadDirect(file)) {
+      const result = await uploadMediaDirect(file, { slotId: slot.id });
+      if (!result.ok) {
+        setError(result.error);
+      } else {
+        setNotice("Saved.");
+        setFile(null);
+        window.dispatchEvent(new CustomEvent("page-media-saved"));
+      }
+      setSaving(false);
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -121,6 +138,15 @@ export function PageMediaRow({
           <input
             type="file"
             aria-label={`Choose file for ${label}`}
+            accept={
+              slot.media_type === "image"
+                ? "image/*"
+                : slot.media_type === "video"
+                  ? "video/*"
+                  : slot.media_type === "audio"
+                    ? "audio/*"
+                    : undefined
+            }
             onChange={handleChoose}
             disabled={saving}
           />
@@ -144,10 +170,16 @@ export function PageMediaRow({
           )}
         </div>
 
-        {slot.aspect_ratio && (
+        {slot.aspect_ratio && slot.media_type !== "video" && (
           <p className="hp-media__hint">
             Any size is fine — it&apos;s centre-cropped to {slot.aspect_ratio}{" "}
             automatically.
+          </p>
+        )}
+        {slot.media_type === "video" && (
+          <p className="hp-media__hint">
+            Files up to 50 MB upload here. For a longer video, open Advanced
+            and paste a YouTube or Vimeo link instead.
           </p>
         )}
         {notice && <p className="hp-media__status hp-media__status--ok">{notice}</p>}
