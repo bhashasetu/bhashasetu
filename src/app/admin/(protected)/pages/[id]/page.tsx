@@ -2,6 +2,55 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Shape this read-only inspector consumes. Hand-written rather than
+ * generated because the query selects a nested subset of columns.
+ */
+type AdminAssignment = {
+  id: string;
+  status: string | null;
+  media_asset?: {
+    title?: string | null;
+    filename?: string | null;
+    status?: string | null;
+  } | null;
+};
+
+type AdminPrompt = {
+  id: string;
+  provider: string;
+  model_name?: string | null;
+  prompt_text: string;
+};
+
+type AdminSlot = {
+  id: string;
+  slot_key: string;
+  media_type: string;
+  aspect_ratio?: string | null;
+  slot_media_assignments?: AdminAssignment[] | null;
+  generation_prompts?: AdminPrompt[] | null;
+};
+
+type AdminContent = {
+  id: string;
+  field_key: string;
+  field_type?: string | null;
+  content?: string | null;
+  status?: string | null;
+};
+
+type AdminSection = {
+  id: string;
+  section_key: string;
+  title?: string | null;
+  section_type: string;
+  status?: string | null;
+  media_slots?: AdminSlot[] | null;
+  page_content?: AdminContent[] | null;
+};
+
+
 export default async function PageDetailPage({
   params,
 }: {
@@ -45,7 +94,7 @@ export default async function PageDetailPage({
         <h2>Sections</h2>
         {page.page_sections && page.page_sections.length > 0 ? (
           <div>
-            {page.page_sections.map((section: any) => (
+            {page.page_sections.map((section: AdminSection) => (
               <div key={section.id} style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc" }}>
                 <h3>{section.title || section.section_key}</h3>
                 <p>Type: {section.section_type} | Status: {section.status}</p>
@@ -54,7 +103,7 @@ export default async function PageDetailPage({
                 {section.media_slots && section.media_slots.length > 0 && (
                   <div style={{ marginTop: "15px" }}>
                     <h4>Media Slots ({section.media_slots.length})</h4>
-                    {section.media_slots.map((slot: any) => (
+                    {section.media_slots.map((slot: AdminSlot) => (
                       <div
                         key={slot.id}
                         style={{
@@ -74,7 +123,7 @@ export default async function PageDetailPage({
                           <div style={{ marginTop: "10px" }}>
                             <em>Assigned Media:</em>
                             <ul>
-                              {slot.slot_media_assignments.map((assign: any) => (
+                              {slot.slot_media_assignments.map((assign: AdminAssignment) => (
                                 <li key={assign.id}>
                                   {assign.media_asset?.title || assign.media_asset?.filename}
                                   <br />
@@ -93,7 +142,7 @@ export default async function PageDetailPage({
                           <div style={{ marginTop: "10px" }}>
                             <em>Generation Prompts:</em>
                             <ul>
-                              {slot.generation_prompts.map((prompt: any) => (
+                              {slot.generation_prompts.map((prompt: AdminPrompt) => (
                                 <li key={prompt.id}>
                                   <strong>{prompt.provider}</strong>
                                   {prompt.model_name && ` (${prompt.model_name})`}
@@ -117,7 +166,7 @@ export default async function PageDetailPage({
                   <div style={{ marginTop: "15px" }}>
                     <h4>Content Fields ({section.page_content.length})</h4>
                     <ul>
-                      {section.page_content.map((content: any) => (
+                      {section.page_content.map((content: AdminContent) => (
                         <li key={content.id}>
                           <strong>{content.field_key}</strong>
                           <br />

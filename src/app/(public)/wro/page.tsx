@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { MediaSlotImage } from "@/components/public/MediaSlotImage";
 
 export default async function WROPage() {
   const supabase = await createClient();

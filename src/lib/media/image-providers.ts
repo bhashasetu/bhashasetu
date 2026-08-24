@@ -145,7 +145,7 @@ export function resolveConfiguredProvider(preferred: string): ImageProvider {
 export function getAvailableProviders(): Array<{ name: string; configured: boolean }> {
   return Object.entries(providers)
     .filter(([name]) => name !== "flux") // Don't duplicate flux alias
-    .map(([name, provider]) => ({
+    .map(([, provider]) => ({
       name: provider.name,
       configured: provider.isConfigured(),
     }));

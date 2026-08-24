@@ -3,6 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { MediaSlotImage } from "@/components/public/MediaSlotImage";
 import { MobileHome } from "@/components/public/MobileHome";
 import { renderAccented } from "@/lib/content/accent";
+import {
+  findContent,
+  findSection,
+  findSlot,
+  type PageSection,
+} from "@/lib/cms/page-content";
 import "./homepage.css";
 
 /**
@@ -107,21 +113,23 @@ export default async function HomePage() {
     );
   }
 
-  const sections = homepage.page_sections || [];
+  const sections: PageSection[] = homepage.page_sections || [];
 
-  // Helper functions
-  const getSection = (key: string) =>
-    sections.find((s: any) => s.section_key === key);
-  const getContent = (section: any, field: string) =>
-    section?.page_content?.find((c: any) => c.field_key === field)?.content;
-  const getSlot = (section: any, key: string) =>
-    section?.media_slots?.find((s: any) => s.slot_key === key);
+  const getSection = (key: string) => findSection(sections, key);
+  const getContent = findContent;
+  const getSlot = findSlot;
 
   const heroSection = getSection("hero");
   const wroSection = getSection("wro_project");
   const learnSection = getSection("learn_explore");
   const voicesSection = getSection("voices_inspire");
   const chatSection = getSection("my_bhasha_setu");
+
+  // Bound once each: calling getSlot() twice (to guard, then to read .id)
+  // means the guard never narrows the second call.
+  const heroImageSlot = getSlot(heroSection, "hero_image");
+  const wroVideoSlot = getSlot(wroSection, "wro_video");
+  const robotSlot = getSlot(chatSection, "robot_image");
 
   return (
     <>
@@ -163,9 +171,9 @@ export default async function HomePage() {
             </div>
 
             <div className="hero-media">
-              {getSlot(heroSection, "hero_image") && (
+              {heroImageSlot && (
                 <MediaSlotImage
-                  slotId={getSlot(heroSection, "hero_image").id}
+                  slotId={heroImageSlot.id}
                   altText="The Bhasha Setu WRO project vehicle"
                   aspectRatio="4:3"
                   label="WRO vehicle photograph"
@@ -177,9 +185,9 @@ export default async function HomePage() {
               <aside className="wro-panel">
                 <h2 className="wro-title">{getContent(wroSection, "title")}</h2>
                 <div className="wro-video">
-                  {getSlot(wroSection, "wro_video") && (
+                  {wroVideoSlot && (
                     <MediaSlotImage
-                      slotId={getSlot(wroSection, "wro_video").id}
+                      slotId={wroVideoSlot.id}
                       altText="Bhasha Setu WRO Future Innovators video"
                       aspectRatio="16:9"
                       label="WRO project video"
@@ -309,9 +317,9 @@ export default async function HomePage() {
                   </Link>
                 </div>
                 <div className="chat-robot">
-                  {getSlot(chatSection, "robot_image") && (
+                  {robotSlot && (
                     <MediaSlotImage
-                      slotId={getSlot(chatSection, "robot_image").id}
+                      slotId={robotSlot.id}
                       altText="The Bhasha Setu robot, your learning companion"
                       aspectRatio="1:1"
                       label="Robot"

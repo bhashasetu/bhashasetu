@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MediaSlotImage } from "@/components/public/MediaSlotImage";
+import { findContent, findSection, findSlot } from "@/lib/cms/page-content";
 
 export default async function StoriesPage() {
   const supabase = await createClient();
@@ -36,19 +37,15 @@ export default async function StoriesPage() {
     );
   }
 
-  const getSection = (sectionKey: string) => {
-    return storiesPage.page_sections?.find((s: any) => s.section_key === sectionKey);
-  };
-
-  const getContent = (section: any, fieldKey: string): string | undefined => {
-    return section?.page_content?.find((c: any) => c.field_key === fieldKey)?.content;
-  };
-
-  const getSlot = (section: any, slotKey: string) => {
-    return section?.media_slots?.find((s: any) => s.slot_key === slotKey);
-  };
+  const getSection = (sectionKey: string) =>
+    findSection(storiesPage.page_sections, sectionKey);
+  const getContent = findContent;
+  const getSlot = findSlot;
 
   const featuredSection = getSection("featured_interview");
+  // Bound once: guarding on getSlot(...) then calling it again to read .id
+  // means the guard never narrows the second call.
+  const featuredThumbnail = getSlot(featuredSection, "interview_thumbnail");
   const gridSection = getSection("interview_grid");
 
   return (
@@ -61,9 +58,9 @@ export default async function StoriesPage() {
         <section>
           <h2>{getContent(featuredSection, "heading") || "Featured Voice"}</h2>
 
-          {getSlot(featuredSection, "interview_thumbnail") && (
+          {featuredThumbnail && (
             <MediaSlotImage
-              slotId={getSlot(featuredSection, "interview_thumbnail").id}
+              slotId={featuredThumbnail.id}
               altText="Featured interview"
               aspectRatio="16:9"
             />
@@ -81,13 +78,13 @@ export default async function StoriesPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" }}>
             {gridSection.media_slots
-              ?.filter((s: any) => s.slot_key?.startsWith("interview_"))
-              .sort((a: any, b: any) => {
+              ?.filter((s) => s.slot_key?.startsWith("interview_"))
+              .sort((a, b) => {
                 const aNum = parseInt(a.slot_key.replace("interview_", "")) || 0;
                 const bNum = parseInt(b.slot_key.replace("interview_", "")) || 0;
                 return aNum - bNum;
               })
-              .map((slot: any) => (
+              .map((slot) => (
                 <article key={slot.id}>
                   <MediaSlotImage
                     slotId={slot.id}

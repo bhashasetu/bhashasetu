@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { findContent, findSection } from "@/lib/cms/page-content";
 
 export default async function HeritagePage() {
   const supabase = await createClient();
@@ -29,13 +30,9 @@ export default async function HeritagePage() {
     );
   }
 
-  const getSection = (sectionKey: string) => {
-    return heritagePage.page_sections?.find((s: any) => s.section_key === sectionKey);
-  };
-
-  const getContent = (section: any, fieldKey: string): string | undefined => {
-    return section?.page_content?.find((c: any) => c.field_key === fieldKey)?.content;
-  };
+  const getSection = (sectionKey: string) =>
+    findSection(heritagePage.page_sections, sectionKey);
+  const getContent = findContent;
 
   const warliSection = getSection("warli_heritage");
   const katkariSection = getSection("katkari_heritage");

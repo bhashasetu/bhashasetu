@@ -4,8 +4,23 @@ import { NextResponse } from "next/server";
  * Server-side smoke test runner
  * Tests all OpenAI integrations and returns detailed results
  */
-export async function GET(request: Request) {
-  const results: any = {
+/** The per-test helpers below build these ad hoc, so the extra diagnostic
+ *  fields vary by test; only name and status are guaranteed. */
+type TestResult = {
+  name: string;
+  status: string;
+  [key: string]: unknown;
+};
+
+type SmokeResults = {
+  timestamp: string;
+  environment: Record<string, unknown>;
+  tests: TestResult[];
+  summary?: Record<string, unknown>;
+};
+
+export async function GET() {
+  const results: SmokeResults = {
     timestamp: new Date().toISOString(),
     environment: {
       hasOpenAIKey: !!process.env.OPENAI_API_KEY,
@@ -51,9 +66,9 @@ export async function GET(request: Request) {
   }
 
   // Summary
-  const passed = results.tests.filter((t: any) => t.status === "PASS").length;
-  const failed = results.tests.filter((t: any) => t.status === "FAIL").length;
-  const errors = results.tests.filter((t: any) => t.status === "ERROR").length;
+  const passed = results.tests.filter((t) => t.status === "PASS").length;
+  const failed = results.tests.filter((t) => t.status === "FAIL").length;
+  const errors = results.tests.filter((t) => t.status === "ERROR").length;
 
   results.summary = {
     total: results.tests.length,

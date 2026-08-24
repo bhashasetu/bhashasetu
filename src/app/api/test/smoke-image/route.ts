@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
  * Tests: POST /v1/images/generations using dall-e-3
  * Expected: Valid image URL in response
  */
-export async function POST(request: Request) {
+export async function POST() {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {

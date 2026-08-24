@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
  * Tests: POST /v1/audio/speech using gpt-4o-mini-tts (actually uses text-to-speech model)
  * Expected: Valid audio/mpeg response
  */
-export async function POST(request: Request) {
+export async function POST() {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {

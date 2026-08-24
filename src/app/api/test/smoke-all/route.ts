@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
  * Master smoke test runner for all OpenAI integrations
  * Runs all tests and provides a comprehensive report
  */
-export async function POST(request: Request) {
+export async function POST() {
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : "http://localhost:3000";

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
  * Tests: POST /v1/chat/completions using gpt-4o-mini
  * Expected: Valid text response
  */
-export async function POST(request: Request) {
+export async function POST() {
   const apiKey = process.env.OPENAI_API_KEY;
   const chatModel = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
 
