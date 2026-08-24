@@ -10,6 +10,8 @@ export const entryStatusValues = [
   "archived",
 ] as const;
 export const mediaStatusValues = ["draft", "published", "archived"] as const;
+/** Mirrors learning_entries_entry_type_valid (migration 0021). */
+export const entryTypeValues = ["word", "phrase"] as const;
 export const storyStatusValues = ["draft", "published", "archived"] as const;
 export const storyFormatValues = ["interview", "audio", "song"] as const;
 
@@ -35,7 +37,7 @@ export const learningEntryInputSchema = z.object({
   transliteration: z.string().trim().max(500).optional().nullable(),
   english_meaning: z.string().trim().min(1).max(500),
   hindi_meaning: z.string().trim().max(500).optional().nullable(),
-  entry_type: z.string().trim().max(50).optional(),
+  entry_type: z.enum(entryTypeValues).optional(),
   region: z.string().trim().max(255).optional().nullable(),
   speaker_notes: z.string().trim().max(5000).optional().nullable(),
   display_order: z.number().int().optional(),
