@@ -88,7 +88,12 @@ export function stripFrame(message: string): string | null {
   const text = normalise(message);
   for (const pattern of LOOKUP_WRAPPERS) {
     const match = text.match(pattern);
-    if (match?.[1]) return normalise(match[1]);
+    if (match?.[1]) {
+      // A wrapper's own ["'] can match the opening quote and leave the closing
+      // one on the term, so the term is unquoted rather than trusted.
+      const term = unquote(normalise(match[1]));
+      if (term) return term;
+    }
   }
   return null;
 }
@@ -151,8 +156,64 @@ function looksLikeSentence(term: string): boolean {
   return term.trim().split(/\s+/).length > 4;
 }
 
+/**
+ * Curly quotes are what people actually type.
+ *
+ * Phones and macOS substitute them automatically, so "What is 'how are you' in
+ * warli" arrives with U+2018/U+2019 — which no pattern below matched, leaving
+ * the quotes inside the search term and the entry unfindable. Found in the
+ * unanswered log rather than by imagining it.
+ */
 function normalise(message: string): string {
-  return message.trim().replace(/\s+/g, " ");
+  return message
+    .trim()
+    .replace(/[‘’‛′]/g, "'")
+    .replace(/[“”‟″]/g, '"')
+    .replace(/\s+/g, " ");
+}
+
+/** Quotes left clinging to a captured term after the wrapper came off. */
+function unquote(value: string): string {
+  return value.replace(/^["']+/, "").replace(/["']+$/, "").trim();
+}
+
+/**
+ * Openers that are not questions.
+ *
+ * Someone who types "Hi" is saying hello, and "hi is not in our collection yet"
+ * is both wrong and a poor first thing to say to a visitor.
+ *
+ * This is deliberately not consulted before the search. "Good morning" is a
+ * greeting and also one of the phrases in the collection, and the collection
+ * must win — so the caller looks the message up first and only asks this when
+ * nothing was found. A greeting can then never shadow a real entry.
+ */
+const GREETINGS = new Set([
+  "hi",
+  "hii",
+  "hey",
+  "hello",
+  "helo",
+  "hi there",
+  "hello there",
+  "good morning",
+  "good afternoon",
+  "good evening",
+  "namaste",
+  "namaskar",
+  "नमस्ते",
+  "नमस्कार",
+  "हाय",
+  "हॅलो",
+]);
+
+/** Whether a message is only a greeting. Ask this after the search, not before. */
+export function isGreeting(message: string): boolean {
+  const text = normalise(message)
+    .toLowerCase()
+    .replace(/[!?.,]+$/, "")
+    .trim();
+  return GREETINGS.has(text);
 }
 
 /**
@@ -184,7 +245,7 @@ export function routeIntent(
     const namesLanguage = LANGUAGE_MENTIONS.some((name) => lower.includes(name));
     return {
       intent: "word_lookup",
-      term: framed || (namesLanguage ? bareTerm(text) || text : text),
+      term: framed || (namesLanguage ? bareTerm(text) || text : unquote(text) || text),
     };
   }
 

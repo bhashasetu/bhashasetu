@@ -653,6 +653,18 @@ export function ChatPanel({
               </div>
             );
           }
+          if (reply.kind === "greeting") {
+            return (
+              <div className="chat-bubble chat-bubble--assistant" key={m.id}>
+                <p>
+                  Namaste. Ask me for a Warli or Katkari word or phrase and
+                  I&apos;ll show you what it means, with a recording of someone
+                  who speaks it. For questions about Bhasha Setu itself, switch
+                  to <strong>Help &amp; how to</strong>.
+                </p>
+              </div>
+            );
+          }
           if (reply.kind === "disabled") {
             return (
               <p className="chat-bubble chat-bubble--assistant" key={m.id}>

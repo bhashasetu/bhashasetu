@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { routeIntent, type ChatMode } from "@/lib/chat/intent";
+import { routeIntent, isGreeting, type ChatMode } from "@/lib/chat/intent";
 import { matchFaq, recordUnanswered } from "@/lib/chat/faq-match";
 import { getPublicChatConfig } from "@/lib/chat/config";
 import { answerFromFaqs } from "@/lib/chat/sarvam";
@@ -60,6 +60,7 @@ export type ChatReply =
       intent: "word_lookup" | "platform_help";
       term?: string;
     }
+  | { kind: "greeting" }
   | { kind: "disabled" };
 
 /** Bounded so a long paste cannot become a long, expensive query. */
@@ -119,6 +120,12 @@ export async function POST(request: Request) {
       asTerm && term === raw ? asTerm : await searchEntries(supabase, null, term);
 
     if (result.data.length === 0) {
+      // Asked only now that the collection has had its say: "good morning" is a
+      // greeting and also one of the phrases, and the phrase must win. Not
+      // recorded as unanswered either — "Hi" is not a gap in the collection.
+      if (isGreeting(raw)) {
+        return NextResponse.json({ data: { kind: "greeting" } satisfies ChatReply });
+      }
       await recordUnanswered(supabase, raw, locale);
       return NextResponse.json({
         data: { kind: "no_result", intent: "word_lookup", term } satisfies ChatReply,
@@ -144,6 +151,10 @@ export async function POST(request: Request) {
         })),
       } satisfies ChatReply,
     });
+  }
+
+  if (isGreeting(raw)) {
+    return NextResponse.json({ data: { kind: "greeting" } satisfies ChatReply });
   }
 
   const faq = await matchFaq(supabase, raw, locale);
