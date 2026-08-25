@@ -83,8 +83,16 @@ export async function loadPageForEditor(
       section_type: s.section_type,
       display_order: s.display_order,
       status: s.status,
-      page_content: s.page_content ?? [],
-      media_slots: (s.media_slots ?? []).map((m) => ({
+      // Archived fields and slots are kept in the database as a record of what
+      // a page used to carry, but the public site has stopped rendering them —
+      // so showing them here would invite an editor to fill in something that
+      // goes nowhere.
+      page_content: (s.page_content ?? []).filter(
+        (c) => c.status !== "archived"
+      ),
+      media_slots: (s.media_slots ?? [])
+        .filter((m) => m.status !== "archived")
+        .map((m) => ({
         id: m.id,
         slot_key: m.slot_key,
         media_type: m.media_type,

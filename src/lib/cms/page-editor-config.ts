@@ -19,13 +19,17 @@ export type Surface = "Desktop" | "Mobile" | "Both";
  */
 export const SURFACE_BY_PAGE: Record<string, Record<string, Surface>> = {
   homepage: {
-    hero: "Desktop",
+    // The mobile home screen reads the desktop hero's image slot, so an
+    // upload here lands on both surfaces.
+    hero: "Both",
     wro_project: "Both",
     learn_explore: "Both",
     voices_inspire: "Desktop",
     my_bhasha_setu: "Both",
     mobile_hero: "Mobile",
     todays_word: "Mobile",
+    // Heading and link label only — the cards themselves come from the
+    // Stories module, not from this screen.
     stories_voices: "Mobile",
   },
   "stories-voices": {
@@ -50,7 +54,6 @@ export function surfaceFor(pageSlug: string, sectionKey: string): Surface {
 const FIELD_LABELS: Record<string, string> = {
   // Homepage
   hero_image: "Hero image",
-  mobile_hero_image: "Hero image (mobile)",
   wro_video: "WRO video",
   robot_image: "Robot image",
   card_warli_image: "Warli card image",

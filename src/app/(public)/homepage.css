@@ -981,6 +981,37 @@
   margin: 0;
 }
 
+/* The row shares StoryPlayer with the desktop Stories page, so it inherits
+   that component's play button and duration badge. Only the sizing differs,
+   which is what these two rules set — the behaviour is identical. */
+.mhome-story__thumb .story-card__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  padding: 0 0 0 2px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mhome-story__thumb button.story-card__play {
+  cursor: pointer;
+}
+
+.mhome-story__thumb .story-card__play--pending {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mhome-story__thumb .story-card__duration,
 .mhome-story__dur {
   position: absolute;
   right: 5px;
@@ -990,6 +1021,12 @@
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;
+}
+
+.mhome-stories__empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: 0;
 }
 
 /* --- Follow us --- */

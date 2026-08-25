@@ -1,26 +1,43 @@
 import Link from "next/link";
 import { SlotMedia } from "@/components/public/SlotMedia";
+import { StoryPlayer } from "@/components/public/StoryPlayer";
 import { SocialLinks } from "@/components/public/SocialLinks";
 import type { ResolvedSlotMedia } from "@/lib/media/resolve-slot-urls";
 import { renderAccented } from "@/lib/content/accent";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/** One card in the mobile Stories & Voices row, from a published story. */
+export type MobileStory = {
+  id: string;
+  title: string;
+  languageName: string | null;
+  duration: string | null;
+  thumbnailUrl: string | null;
+  mediaUrl: string | null;
+  mediaSourceUrl: string | null;
+};
+
 /**
  * Mobile home screen, per MOBILE-05-LanguageSelection.PNG.
  *
  * This is a distinct composition, not a reflow of the desktop homepage: it
- * carries its own hero copy, a Today's Word card and a Stories & Voices row.
- * Sections shared with desktop (WRO project, My BhashaSetu) read the same CMS
- * fields so a single edit updates both surfaces.
+ * carries its own hero copy and a Today's Word card. What it does not carry is
+ * its own copies of media that exists elsewhere — the hero image comes from
+ * the same slot the desktop hero uses, and the Stories & Voices row reads the
+ * same published records that drive the /stories page. Both used to be
+ * separate uploads an editor had to keep in step by hand.
  */
 export function MobileHome({
   sections,
   slotMedia,
+  stories,
 }: {
   sections: any[];
   /** Slot id -> resolved media, resolved once on the server by the page. */
   slotMedia: Map<string, ResolvedSlotMedia>;
+  /** Published stories for the row, already ordered and resolved. */
+  stories: MobileStory[];
 }) {
   const media = (s: any) => (s ? (slotMedia.get(s.id) ?? null) : null);
   const section = (key: string) =>
@@ -35,9 +52,11 @@ export function MobileHome({
   const word = section("todays_word");
   const wro = section("wro_project");
   const chat = section("my_bhasha_setu");
-  const stories = section("stories_voices");
+  const storiesSection = section("stories_voices");
 
-  const heroImage = slot(hero, "mobile_hero_image");
+  // The desktop hero's slot, not a mobile-only copy of it. Both frames are
+  // 4:3, so one upload fills both at their own sizes.
+  const heroImage = slot(section("hero"), "hero_image");
   const wordImage = slot(word, "todays_word_image");
   // Bound once each: guarding on slot(...) then calling it again to read .id
   // means the guard never protects the second call.
@@ -207,53 +226,44 @@ export function MobileHome({
         </section>
       )}
 
-      {stories && (
+      {/* The same published records the /stories page shows, in the same
+          order, so an interview published in the Stories module appears here
+          with no second upload and nothing retyped. */}
+      {storiesSection && (
         <section className="mhome-stories">
           <header className="mhome-stories__head">
-            <h2>{content(stories, "heading")}</h2>
+            <h2>{content(storiesSection, "heading")}</h2>
             <Link href="/stories" className="mhome-stories__all">
-              {content(stories, "cta_text")} <span aria-hidden="true">→</span>
+              {content(storiesSection, "cta_text")}{" "}
+              <span aria-hidden="true">→</span>
             </Link>
           </header>
-          <ul className="mhome-stories__row">
-            {[1, 2, 3, 4].map((n) => {
-              const thumb = slot(stories, `story_${n}_thumbnail`);
-              const title = content(stories, `story_${n}_title`);
-              return (
-                <li className="mhome-story" key={n}>
-                  <div className="mhome-story__thumb">
-                    {thumb && (
-                      <SlotMedia
-                        url={media(thumb)?.url ?? null}
-                        sourceUrl={media(thumb)?.sourceUrl ?? null}
-                        altText={title || `Story ${n}`}
-                        aspectRatio={thumb.aspect_ratio}
-                        label="Story"
-                        mediaType="image"
-                      />
-                    )}
-                    <span
-                      className="mhome-play mhome-play--sm"
-                      aria-hidden="true"
-                    >
-                      ▶
-                    </span>
-                    {content(stories, `story_${n}_duration`) && (
-                      <span className="mhome-story__dur">
-                        {content(stories, `story_${n}_duration`)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mhome-story__title">
-                    {title || "Story coming soon"}
-                  </p>
-                  <p className="mhome-story__lang">
-                    {content(stories, `story_${n}_language`)}
-                  </p>
+          {stories.length > 0 ? (
+            <ul className="mhome-stories__row">
+              {stories.map((story) => (
+                <li className="mhome-story" key={story.id}>
+                  <StoryPlayer
+                    url={story.mediaUrl}
+                    sourceUrl={story.mediaSourceUrl}
+                    posterUrl={story.thumbnailUrl}
+                    title={story.title}
+                    aspectRatio="16:9"
+                    label="Story"
+                    duration={story.duration}
+                    frameClassName="mhome-story__thumb"
+                  />
+                  <p className="mhome-story__title">{story.title}</p>
+                  {story.languageName && (
+                    <p className="mhome-story__lang">{story.languageName}</p>
+                  )}
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="mhome-stories__empty">
+              No stories have been published yet.
+            </p>
+          )}
         </section>
       )}
 

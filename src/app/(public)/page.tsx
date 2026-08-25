@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SlotMedia } from "@/components/public/SlotMedia";
-import { MobileHome } from "@/components/public/MobileHome";
+import { MobileHome, type MobileStory } from "@/components/public/MobileHome";
 import { renderAccented } from "@/lib/content/accent";
 import { resolveSlotUrls } from "@/lib/media/resolve-slot-urls";
+import {
+  STORY_FORMATS,
+  formatDuration,
+  getStories,
+  resolveStoryAssetUrls,
+} from "@/lib/stories/queries";
 import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import {
   findContent,
@@ -18,6 +24,9 @@ import "./homepage.css";
  * The editorial copy itself lives in the CMS; these entries only bind each
  * card to its slot and destination.
  */
+/** Cards in the mobile Stories & Voices row; the approved design shows four. */
+const MOBILE_STORY_LIMIT = 4;
+
 const LEARN_CARDS = [
   {
     slotKey: "card_warli_image",
@@ -113,7 +122,8 @@ export default async function HomePage() {
           id,
           slot_key,
           media_type,
-          aspect_ratio
+          aspect_ratio,
+          status
         )
       )
     `
@@ -131,7 +141,17 @@ export default async function HomePage() {
     );
   }
 
-  const sections: PageSection[] = homepage.page_sections || [];
+  // A retired slot stays in the database as a record of what the page used to
+  // carry (CLAUDE.md section 8, archive rather than delete). It is dropped
+  // here so the page neither renders it nor pays to sign media behind it.
+  const sections: PageSection[] = (homepage.page_sections || []).map(
+    (section: PageSection) => ({
+      ...section,
+      media_slots: (section.media_slots ?? []).filter(
+        (slot) => slot.status !== "archived"
+      ),
+    })
+  );
 
   /**
    * Every slot on the page resolved server-side, in one pass.
@@ -154,6 +174,39 @@ export default async function HomePage() {
   const media = (slot?: { id: string }) =>
     slot ? slotMedia.get(slot.id) ?? null : null;
 
+  /**
+   * The mobile Stories & Voices row.
+   *
+   * These four cards used to be four thumbnail slots plus twelve text fields
+   * on the homepage, filled in by hand — so publishing an interview meant
+   * uploading its thumbnail a second time and retyping its title, language and
+   * duration. They are the same published records the /stories page shows, so
+   * the row now reads those directly, ordered exactly as that page orders them
+   * (display_order first, so pinning a story in the Back Office pins it here
+   * too, then newest published).
+   */
+  const mobileStories = await getStories(supabase, {
+    format: [...STORY_FORMATS],
+    filters: { sort: "latest" },
+    limit: MOBILE_STORY_LIMIT,
+  });
+  const storyAssets = await resolveStoryAssetUrls(
+    supabase,
+    mobileStories.flatMap((s) => [s.thumbnail_asset_id, s.media_asset_id])
+  );
+  const storyAsset = (id: string | null) =>
+    id ? storyAssets.get(id) ?? null : null;
+
+  const mobileStoryCards: MobileStory[] = mobileStories.map((story) => ({
+    id: story.id,
+    title: story.title,
+    languageName: story.language?.name ?? null,
+    duration: formatDuration(story.duration_seconds),
+    thumbnailUrl: storyAsset(story.thumbnail_asset_id)?.url ?? null,
+    mediaUrl: storyAsset(story.media_asset_id)?.url ?? null,
+    mediaSourceUrl: storyAsset(story.media_asset_id)?.sourceUrl ?? null,
+  }));
+
   const getSection = (key: string) => findSection(sections, key);
   const getContent = findContent;
   const getSlot = findSlot;
@@ -174,7 +227,11 @@ export default async function HomePage() {
     <>
       {/* MOBILE-05 is a distinct composition, not a reflow of the desktop
           page, so the two surfaces are separate trees switched by breakpoint. */}
-      <MobileHome sections={sections} slotMedia={slotMedia} />
+      <MobileHome
+        sections={sections}
+        slotMedia={slotMedia}
+        stories={mobileStoryCards}
+      />
 
       <div className="homepage surface-desktop">
       {/* HERO SECTION */}

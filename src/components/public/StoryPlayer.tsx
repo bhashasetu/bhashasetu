@@ -26,6 +26,7 @@ export function StoryPlayer({
   aspectRatio = "16:9",
   label = "Interview",
   duration,
+  frameClassName = "story-card__media",
 }: {
   /** Signed URL for a file we host. */
   url: string | null;
@@ -36,6 +37,13 @@ export function StoryPlayer({
   aspectRatio?: string;
   label?: string;
   duration?: string | null;
+  /**
+   * Class on the frame around the poster and player. The desktop story rail
+   * and the mobile home row are different compositions with their own sizing,
+   * but the play behaviour is identical, so they share this component and
+   * differ only in what wraps it.
+   */
+  frameClassName?: string;
 }) {
   const [playing, setPlaying] = useState(false);
 
@@ -44,7 +52,7 @@ export function StoryPlayer({
 
   if (playing && embed) {
     return (
-      <div className="story-card__media">
+      <div className={frameClassName}>
         <SlotMedia
           url={null}
           sourceUrl={sourceUrl}
@@ -58,7 +66,7 @@ export function StoryPlayer({
 
   if (playing && url) {
     return (
-      <div className="story-card__media">
+      <div className={frameClassName}>
         <div className="media-slot" style={frameStyle(aspectRatio)}>
           <video
             src={url}
@@ -76,7 +84,7 @@ export function StoryPlayer({
   }
 
   return (
-    <div className="story-card__media">
+    <div className={frameClassName}>
       <SlotMedia
         url={posterUrl}
         altText={title}
