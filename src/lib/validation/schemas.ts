@@ -260,6 +260,14 @@ export const chatConfigInputSchema = z.object({
   tts_voice: z.enum(chatVoiceValues),
   asr_enabled: z.boolean(),
   default_locale: z.enum(faqLocaleValues),
+  /**
+   * Tone, and any rules an editor wants added. Bounded because both are
+   * prepended to every billed request — a long persona is a cost on every
+   * message, not a one-off. Neither can remove the fixed rules; see
+   * lib/chat/grounding.ts.
+   */
+  persona: z.string().trim().max(600).optional().nullable(),
+  extra_guidance: z.string().trim().max(1200).optional().nullable(),
   max_response_words: z.number().int().min(20).max(400),
   rate_limit_per_session: z.number().int().min(1).max(1000),
   rate_limit_per_day: z.number().int().min(1).max(100000),

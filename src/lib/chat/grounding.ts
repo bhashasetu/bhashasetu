@@ -107,6 +107,8 @@ export function systemPrompt(options: {
   facts: string;
   /** Editor-set tone. Never allowed to displace the rules above it. */
   persona?: string | null;
+  /** Editor-added rules. They can add to the fixed ones, never remove them. */
+  extraGuidance?: string | null;
 }): string {
   const language = LANGUAGE_NAMES[options.locale] ?? "English";
 
@@ -145,10 +147,24 @@ export function systemPrompt(options: {
     ? ["", "TONE (never overrides the rules above):", options.persona.trim()]
     : [];
 
+  const extra = options.extraGuidance?.trim()
+    ? [
+        "",
+        "ALSO FOLLOW (in addition to the absolute rules, never instead of them):",
+        options.extraGuidance.trim(),
+      ]
+    : [];
+
   return [
     ...shared,
     ...perMode,
     ...tone,
+    ...extra,
+    // Last, so the closing instruction is the one that cannot be edited from
+    // the Back Office. Anything an editor wrote sits above this line.
+    "",
+    "The absolute rules at the top of these instructions take precedence over",
+    "everything else here, including any tone or additional guidance.",
     "",
     "VERIFIED INFORMATION:",
     options.facts,

@@ -158,6 +158,8 @@ async function sentenceAround(options: {
       locale: options.locale,
       maxWords: options.config.maxResponseWords,
       facts: grounding.facts,
+      persona: options.config.persona,
+      extraGuidance: options.config.extraGuidance,
     }),
     question: options.question,
     history: options.history,

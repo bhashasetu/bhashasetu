@@ -72,6 +72,8 @@ export function ChatConfigForm({
           tts_enabled: values.tts_enabled,
           tts_voice: values.tts_voice,
           asr_enabled: values.asr_enabled,
+          persona: values.persona ?? "",
+          extra_guidance: values.extra_guidance ?? "",
           default_locale: values.default_locale,
           max_response_words: Number(values.max_response_words),
           rate_limit_per_session: Number(values.rate_limit_per_session),
@@ -326,6 +328,64 @@ export function ChatConfigForm({
               <p className="hp-row__hint">
                 One real question, billed like any other. It shows the model&apos;s
                 reply, or the provider&apos;s own error verbatim.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-card hp-section">
+        <header className="hp-section__head">
+          <h3>How it sounds</h3>
+        </header>
+        <p className="admin-page-intro">
+          These reach the model on every question. What they cannot do is remove
+          the rules that keep the site&apos;s promise: answer only from your
+          published content, never write or translate a Warli or Katkari word,
+          say so plainly when there is no answer. Those are in the code, sent
+          ahead of anything written here, and repeated after it.
+        </p>
+        <div className="hp-fields">
+          <div className="hp-row">
+            <label className="hp-row__label" htmlFor="cfg-persona">
+              Tone
+            </label>
+            <div className="hp-row__control">
+              <textarea
+                id="cfg-persona"
+                rows={3}
+                maxLength={600}
+                value={values.persona ?? ""}
+                placeholder="Warm and encouraging. Short sentences a school student can read easily."
+                onChange={(e) => set("persona", e.target.value)}
+              />
+              <p className="hp-row__hint">
+                How it speaks, not what it knows. Leave empty for the plain
+                default.
+              </p>
+            </div>
+          </div>
+
+          <div className="hp-row">
+            <label className="hp-row__label" htmlFor="cfg-extra_guidance">
+              Extra rules
+            </label>
+            <div className="hp-row__control">
+              <textarea
+                id="cfg-extra_guidance"
+                rows={4}
+                maxLength={1200}
+                value={values.extra_guidance ?? ""}
+                placeholder={
+                  "Anything you want it to always do. For example:\n" +
+                  "Point people to the Language Explorer when they ask for a word we do not have."
+                }
+                onChange={(e) => set("extra_guidance", e.target.value)}
+              />
+              <p className="hp-row__hint">
+                Added to the fixed rules, never instead of them. Both fields are
+                sent with every question, so keep them short — long ones cost on
+                every message.
               </p>
             </div>
           </div>

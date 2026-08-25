@@ -19,13 +19,15 @@ export type ChatConfig = {
   max_response_words: number;
   rate_limit_per_session: number;
   rate_limit_per_day: number;
+  persona: string | null;
+  extra_guidance: string | null;
   updated_at: string | null;
 };
 
 export const CHAT_CONFIG_COLUMNS =
   "enabled, llm_enabled, chat_model, tts_enabled, tts_voice, asr_enabled, " +
   "default_locale, max_response_words, rate_limit_per_session, " +
-  "rate_limit_per_day, updated_at";
+  "rate_limit_per_day, persona, extra_guidance, updated_at";
 
 /**
  * What the settings are before anyone has touched them, and what they fall
@@ -46,6 +48,8 @@ export const CHAT_CONFIG_DEFAULTS: ChatConfig = {
   max_response_words: 120,
   rate_limit_per_session: 30,
   rate_limit_per_day: 500,
+  persona: null,
+  extra_guidance: null,
   updated_at: null,
 };
 
@@ -79,6 +83,8 @@ export async function getPublicChatConfig(supabase: SupabaseClient): Promise<{
   maxResponseWords: number;
   ttsVoice: string;
   asrEnabled: boolean;
+  persona: string | null;
+  extraGuidance: string | null;
 }> {
   const { data } = await supabase.rpc("chat_public_config");
   const row = Array.isArray(data) ? data[0] : data;
@@ -92,6 +98,8 @@ export async function getPublicChatConfig(supabase: SupabaseClient): Promise<{
     maxResponseWords: row?.max_response_words ?? CHAT_CONFIG_DEFAULTS.max_response_words,
     ttsVoice: row?.tts_voice ?? CHAT_CONFIG_DEFAULTS.tts_voice,
     asrEnabled: row?.asr_enabled === true,
+    persona: row?.persona ?? null,
+    extraGuidance: row?.extra_guidance ?? null,
   };
 }
 
