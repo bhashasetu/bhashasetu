@@ -72,6 +72,44 @@
   color: var(--color-bg-white);
 }
 
+/* ===== THE TWO MODULES =====
+   The first thing in the panel, because it is the first decision a visitor
+   makes. Two tabs rather than a dropdown: with exactly two, both stay readable
+   and neither is hidden behind a click. */
+.chat-modes {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-md) 0;
+}
+
+.chat-modes button {
+  flex: 1 1 0;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-dark);
+  cursor: pointer;
+}
+
+.chat-modes button:hover { border-color: var(--color-accent); }
+
+.chat-modes button.is-current {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-bg-white);
+}
+
+.chat-modes__blurb {
+  margin: var(--spacing-sm) var(--spacing-md) 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-text-light);
+}
+
 .chat-suggestions {
   list-style: none;
   display: flex;
@@ -244,6 +282,30 @@
 }
 
 .chat-composer__send:disabled { opacity: 0.45; cursor: default; }
+
+/* WEB-05's Quick actions, along the foot of the panel rather than down a rail:
+   the rail in the reference is mostly account-backed panels this project does
+   not have, and three links do not need a column of their own. */
+.chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-light);
+}
+
+.chat-actions a {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-white);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.chat-actions a:hover { border-color: var(--color-accent); }
 
 .chat-page__back {
   margin-top: var(--spacing-lg);

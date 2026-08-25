@@ -3,6 +3,43 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { ChatReply } from "@/app/api/public/chat/route";
+import type { ChatMode } from "@/lib/chat/intent";
+
+/**
+ * The two things My BhashaSetu does, said out loud.
+ *
+ * They were both reachable before, but only by phrasing a question the right
+ * way — so a visitor had no way of knowing the second one existed. Choosing a
+ * module is also what makes the routing certain: in Learn, "I'm fine" is a
+ * phrase to look up rather than an unrecognised help question.
+ */
+const MODULES: {
+  id: ChatMode;
+  label: string;
+  blurb: string;
+  placeholder: string;
+}[] = [
+  {
+    id: "learn",
+    label: "Learn a word",
+    blurb:
+      "Warli and Katkari words and phrases, with the recording of a community speaker saying it. Ask in English or Hindi.",
+    placeholder: 'Try: how do you say "I\'m fine" in Katkari?',
+  },
+  {
+    id: "help",
+    label: "Help & how to",
+    blurb: "How Bhasha Setu works — the app, the languages, who made it.",
+    placeholder: "Try: is Bhasha Setu free?",
+  },
+];
+
+/** Where the assistant sends people when a page will serve them better. */
+const QUICK_ACTIONS = [
+  { href: "/learn", label: "Explore languages" },
+  { href: "/stories", label: "Listen to stories" },
+  { href: "/faq", label: "All questions" },
+];
 
 type Message =
   | { id: string; role: "user"; text: string }
@@ -300,12 +337,13 @@ export function ChatPanel({
 }: {
   enabled: boolean;
   defaultLocale: string;
-  /** Published questions, offered as starting points. */
-  suggestions: string[];
+  /** Published starting points, per module. */
+  suggestions: { learn: string[]; help: string[] };
   /** Whether spoken answers are switched on in the Back Office. */
   canSpeak: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [mode, setMode] = useState<ChatMode>("learn");
   const [input, setInput] = useState("");
   const locale = useSyncExternalStore(
     subscribeLocale,
@@ -313,6 +351,8 @@ export function ChatPanel({
     () => defaultLocale
   );
   const [sending, setSending] = useState(false);
+  const current = MODULES.find((m) => m.id === mode) ?? MODULES[0];
+  const starters = suggestions[mode] ?? [];
   const threadRef = useRef<HTMLDivElement | null>(null);
   // Ids only need to be unique within this thread, so a counter serves and
   // keeps the handler pure (Date.now() is not).
@@ -335,7 +375,7 @@ export function ChatPanel({
       const res = await fetch("/api/public/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question, locale }),
+        body: JSON.stringify({ message: question, locale, mode }),
       });
       const body = await res.json().catch(() => ({}));
 
@@ -390,9 +430,28 @@ export function ChatPanel({
         </div>
       </div>
 
-      {messages.length === 0 && suggestions.length > 0 && (
+      <div className="chat-modes" role="tablist" aria-label="What would you like to do?">
+        {MODULES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="tab"
+            id={`chat-mode-${m.id}`}
+            aria-selected={mode === m.id}
+            aria-controls="chat-thread"
+            className={mode === m.id ? "is-current" : undefined}
+            onClick={() => setMode(m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="chat-modes__blurb">{current.blurb}</p>
+
+      {messages.length === 0 && starters.length > 0 && (
         <ul className="chat-suggestions">
-          {suggestions.map((s) => (
+          {starters.map((s) => (
             <li key={s}>
               <button type="button" onClick={() => send(s)}>
                 {s}
@@ -402,7 +461,14 @@ export function ChatPanel({
         </ul>
       )}
 
-      <div className="chat-thread" ref={threadRef} aria-live="polite">
+      <div
+        className="chat-thread"
+        id="chat-thread"
+        role="tabpanel"
+        aria-labelledby={`chat-mode-${mode}`}
+        ref={threadRef}
+        aria-live="polite"
+      >
         {messages.map((m) => {
           if (m.role === "user") {
             return (
@@ -495,7 +561,7 @@ export function ChatPanel({
           id="chat-input"
           type="text"
           value={input}
-          placeholder="Ask about a word, or how to use Bhasha Setu"
+          placeholder={current.placeholder}
           onChange={(e) => setInput(e.target.value)}
           maxLength={500}
           autoComplete="off"
@@ -509,6 +575,19 @@ export function ChatPanel({
           <span aria-hidden="true">➤</span>
         </button>
       </form>
+
+      {/* WEB-05's Quick actions. Kept because a page is often the better answer
+          than a conversation, and because they show a visitor that the rest of
+          the site exists. The account-backed panels beside them in the
+          reference — Saved Words, Badges, Your progress — need public sign-in,
+          which this project does not have. */}
+      <nav className="chat-actions" aria-label="Elsewhere on Bhasha Setu">
+        {QUICK_ACTIONS.map((a) => (
+          <Link key={a.href} href={a.href}>
+            {a.label}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

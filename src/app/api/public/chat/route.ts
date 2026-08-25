@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { routeIntent } from "@/lib/chat/intent";
+import { routeIntent, type ChatMode } from "@/lib/chat/intent";
 import { matchFaq, recordUnanswered } from "@/lib/chat/faq-match";
 import { getPublicChatConfig } from "@/lib/chat/config";
 import { answerFromFaqs } from "@/lib/chat/sarvam";
@@ -71,6 +71,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const raw = typeof body?.message === "string" ? body.message.trim() : "";
   const requested = typeof body?.locale === "string" ? body.locale : undefined;
+  // Which module the visitor is in. Absent means an older client, or a direct
+  // caller: fall back to inferring intent from the sentence, as before.
+  const mode: ChatMode | undefined =
+    body?.mode === "learn" || body?.mode === "help" ? body.mode : undefined;
 
   if (!raw) {
     return NextResponse.json({ error: "Ask a question first." }, { status: 400 });
@@ -96,16 +100,23 @@ export async function POST(request: Request) {
   // Is the whole message a term the collection already knows? One indexed
   // lookup, and it lets a bare word typed on its own route correctly without
   // any guessing about sentence shape.
-  const asTerm = await searchEntries(supabase, null, raw);
+  //
+  // Only needed when the module is unknown. A visitor who chose Learn has
+  // already told us more than this query could, and one who chose Help is not
+  // asking about a word at all — running it there would be a wasted round trip
+  // on every message.
+  const asTerm = mode ? null : await searchEntries(supabase, null, raw);
   const routed = routeIntent(raw, {
-    mentionsKnownEntry: asTerm.matchedOn === "native_text" || asTerm.matchedOn === "alias",
+    mode,
+    mentionsKnownEntry:
+      asTerm?.matchedOn === "native_text" || asTerm?.matchedOn === "alias",
   });
 
   if (routed.intent === "word_lookup") {
     const term = routed.term?.trim() || raw;
     // Reuse the result we already have when the message was the term itself.
     const result =
-      term === raw ? asTerm : await searchEntries(supabase, null, term);
+      asTerm && term === raw ? asTerm : await searchEntries(supabase, null, term);
 
     if (result.data.length === 0) {
       await recordUnanswered(supabase, raw, locale);

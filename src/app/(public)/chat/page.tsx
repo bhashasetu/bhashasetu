@@ -31,7 +31,7 @@ export async function generateMetadata() {
 export default async function ChatPage() {
   const supabase = await createClient();
 
-  const [config, faqs, { data: page }] = await Promise.all([
+  const [config, faqs, { data: page }, { data: entries }] = await Promise.all([
     getPublicChatConfig(supabase),
     getPublishedFaqs(supabase),
     supabase
@@ -40,11 +40,35 @@ export default async function ChatPage() {
       .eq("slug", "chat")
       .eq("status", "published")
       .maybeSingle(),
+    // Real published phrases, for the Learn module's starting points.
+    supabase
+      .from("learning_entries")
+      .select("id, english_meaning, languages(name)")
+      .eq("status", "published")
+      .not("english_meaning", "is", null)
+      .order("display_order")
+      .limit(12),
   ]);
 
-  // Starting points, taken from real published questions rather than written
-  // into the component — so they change when an editor changes the FAQ.
-  const suggestions = faqs.slice(0, 3).map((f) => f.question_en);
+  /**
+   * Starting points, in both modules taken from published records rather than
+   * written into the component.
+   *
+   * That matters more in Learn than it looks: a hardcoded example would keep
+   * being offered after an editor archived the phrase, and every visitor who
+   * pressed it would be told the collection does not have it. Built from real
+   * rows, a suggestion is always a question the assistant can answer.
+   */
+  const suggestions = {
+    help: faqs.slice(0, 3).map((f) => f.question_en),
+    learn: ((entries ?? []) as unknown as {
+      english_meaning: string | null;
+      languages: { name: string } | null;
+    }[])
+      .filter((e) => e.english_meaning && e.languages?.name)
+      .slice(0, 3)
+      .map((e) => `How do you say "${e.english_meaning}" in ${e.languages!.name}?`),
+  };
 
   return (
     <main className="chat-page">
