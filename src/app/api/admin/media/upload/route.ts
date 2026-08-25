@@ -104,7 +104,14 @@ export async function POST(request: Request) {
     }
   }
 
-  const extension = contentType === "image/png" ? "png" : contentType === "image/jpeg" ? "jpg" : null;
+  // Name the stored object after what the conform step actually produced,
+  // so a WebP is not filed under a .jpg (or the reverse).
+  const EXTENSION_FOR: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+  };
+  const extension = EXTENSION_FOR[contentType] ?? null;
   const storagePath = buildStoragePath(
     mediaType,
     extension ? file.name.replace(/\.[^.]+$/, `.${extension}`) : file.name

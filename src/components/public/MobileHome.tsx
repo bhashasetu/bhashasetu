@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { MediaSlotImage } from "@/components/public/MediaSlotImage";
+import { SlotMedia } from "@/components/public/SlotMedia";
 import { SocialLinks } from "@/components/public/SocialLinks";
+import type { ResolvedSlotMedia } from "@/lib/media/resolve-slot-urls";
 import { renderAccented } from "@/lib/content/accent";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -13,7 +14,15 @@ import { renderAccented } from "@/lib/content/accent";
  * Sections shared with desktop (WRO project, My BhashaSetu) read the same CMS
  * fields so a single edit updates both surfaces.
  */
-export function MobileHome({ sections }: { sections: any[] }) {
+export function MobileHome({
+  sections,
+  slotMedia,
+}: {
+  sections: any[];
+  /** Slot id -> resolved media, resolved once on the server by the page. */
+  slotMedia: Map<string, ResolvedSlotMedia>;
+}) {
+  const media = (s: any) => (s ? (slotMedia.get(s.id) ?? null) : null);
   const section = (key: string) =>
     sections.find((s: any) => s.section_key === key);
   const content = (s: any, field: string) =>
@@ -42,8 +51,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
         <section className="mhome-hero">
           <div className="mhome-hero__copy">
             <p className="mhome-hero__greeting">
-              {content(hero, "greeting")}{" "}
-              <span aria-hidden="true">👋</span>
+              {content(hero, "greeting")} <span aria-hidden="true">👋</span>
             </p>
             <h1 className="mhome-hero__heading">
               {renderAccented(content(hero, "heading"))}
@@ -52,10 +60,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
           </div>
           {heroImage && (
             <div className="mhome-hero__media">
-              <MediaSlotImage
-                slotId={heroImage.id}
+              <SlotMedia
+                url={media(heroImage)?.url ?? null}
+                sourceUrl={media(heroImage)?.sourceUrl ?? null}
                 altText="The Bhasha Setu WRO project vehicle"
-                aspectRatio={heroImage.aspect_ratio ?? undefined}
+                aspectRatio={heroImage.aspect_ratio}
                 label="WRO vehicle"
               />
             </div>
@@ -92,10 +101,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
               >
                 <div className="mhome-lang__art">
                   {s && (
-                    <MediaSlotImage
-                      slotId={s.id}
+                    <SlotMedia
+                      url={media(s)?.url ?? null}
+                      sourceUrl={media(s)?.sourceUrl ?? null}
                       altText={`${lang.name} artwork`}
-                      aspectRatio={s.aspect_ratio ?? undefined}
+                      aspectRatio={s.aspect_ratio}
                       label={lang.name}
                     />
                   )}
@@ -132,10 +142,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
           </div>
           {wordImage && (
             <div className="mhome-word__art">
-              <MediaSlotImage
-                slotId={wordImage.id}
+              <SlotMedia
+                url={media(wordImage)?.url ?? null}
+                sourceUrl={media(wordImage)?.sourceUrl ?? null}
                 altText="Warli artwork"
-                aspectRatio={wordImage.aspect_ratio ?? undefined}
+                aspectRatio={wordImage.aspect_ratio}
                 label="Artwork"
               />
             </div>
@@ -154,10 +165,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
           </div>
           <div className="mhome-wro__video">
             {wroVideo && (
-              <MediaSlotImage
-                slotId={wroVideo.id}
+              <SlotMedia
+                url={media(wroVideo)?.url ?? null}
+                sourceUrl={media(wroVideo)?.sourceUrl ?? null}
                 altText="Bhasha Setu WRO Future Innovators video"
-                aspectRatio={wroVideo.aspect_ratio ?? undefined}
+                aspectRatio={wroVideo.aspect_ratio}
                 label="Video"
                 mediaType="video"
               />
@@ -173,10 +185,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
         <section className="mhome-chat">
           <div className="mhome-chat__robot">
             {robot && (
-              <MediaSlotImage
-                slotId={robot.id}
+              <SlotMedia
+                url={media(robot)?.url ?? null}
+                sourceUrl={media(robot)?.sourceUrl ?? null}
                 altText="The Bhasha Setu robot, your learning companion"
-                aspectRatio={robot.aspect_ratio ?? undefined}
+                aspectRatio={robot.aspect_ratio}
                 label="Robot"
               />
             )}
@@ -210,15 +223,19 @@ export function MobileHome({ sections }: { sections: any[] }) {
                 <li className="mhome-story" key={n}>
                   <div className="mhome-story__thumb">
                     {thumb && (
-                      <MediaSlotImage
-                        slotId={thumb.id}
+                      <SlotMedia
+                        url={media(thumb)?.url ?? null}
+                        sourceUrl={media(thumb)?.sourceUrl ?? null}
                         altText={title || `Story ${n}`}
-                        aspectRatio={thumb.aspect_ratio ?? undefined}
+                        aspectRatio={thumb.aspect_ratio}
                         label="Story"
                         mediaType="image"
                       />
                     )}
-                    <span className="mhome-play mhome-play--sm" aria-hidden="true">
+                    <span
+                      className="mhome-play mhome-play--sm"
+                      aria-hidden="true"
+                    >
                       ▶
                     </span>
                     {content(stories, `story_${n}_duration`) && (

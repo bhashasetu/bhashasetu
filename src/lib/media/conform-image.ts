@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { keepsAlpha } from "./image-output";
 
 export type ConformResult = {
   buffer: Buffer;
@@ -97,20 +98,27 @@ export async function conformImageToSlot(
     height = Math.round(width / target);
   }
 
-  const isPng = mimeType === "image/png";
   const pipeline = sharp(input, { failOn: "none" })
     .rotate() // honour EXIF orientation before cropping
     .resize(width, height, { fit: "cover", position: "attention" });
 
-  const buffer = isPng
-    ? await pipeline.png({ compressionLevel: 9 }).toBuffer()
-    : await pipeline.jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+  // A format that carries alpha is re-encoded as itself. Sending a
+  // transparent WebP down the JPEG branch flattened it onto black, so a
+  // cut-out uploaded as WebP came back on a solid rectangle.
+  const outputType = keepsAlpha(mimeType) ? mimeType : "image/jpeg";
+
+  const buffer =
+    outputType === "image/png"
+      ? await pipeline.png({ compressionLevel: 9 }).toBuffer()
+      : outputType === "image/webp"
+        ? await pipeline.webp({ quality: 86 }).toBuffer()
+        : await pipeline.jpeg({ quality: 86, mozjpeg: true }).toBuffer();
 
   return {
     buffer,
     width,
     height,
-    mimeType: isPng ? "image/png" : "image/jpeg",
+    mimeType: outputType,
     adjusted: true,
     originalWidth,
     originalHeight,

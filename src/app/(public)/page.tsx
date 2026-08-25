@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { MediaSlotImage } from "@/components/public/MediaSlotImage";
+import { SlotMedia } from "@/components/public/SlotMedia";
 import { MobileHome } from "@/components/public/MobileHome";
 import { renderAccented } from "@/lib/content/accent";
+import { resolveSlotUrls } from "@/lib/media/resolve-slot-urls";
 import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import {
   findContent,
@@ -132,6 +133,27 @@ export default async function HomePage() {
 
   const sections: PageSection[] = homepage.page_sections || [];
 
+  /**
+   * Every slot on the page resolved server-side, in one pass.
+   *
+   * These were rendered by MediaSlotImage, which fetches its URL from an API
+   * route inside useEffect. Nothing could start loading until the JS bundle
+   * had downloaded and hydrated, and only then did each slot make its own
+   * round trip to be signed — so the WRO video was at the end of a four-stage
+   * chain (HTML, bundle, hydrate, sign) before the browser had a src to
+   * request a single byte from. The desktop and mobile trees also both render
+   * the WRO slot, which meant signing and fetching that video twice.
+   *
+   * resolveSlotUrls takes a fixed number of queries whatever the slot count,
+   * and puts real src values in the initial HTML.
+   */
+  const slotMedia = await resolveSlotUrls(
+    supabase,
+    sections.flatMap((s) => (s.media_slots ?? []).map((m) => m.id))
+  );
+  const media = (slot?: { id: string }) =>
+    slot ? slotMedia.get(slot.id) ?? null : null;
+
   const getSection = (key: string) => findSection(sections, key);
   const getContent = findContent;
   const getSlot = findSlot;
@@ -152,7 +174,7 @@ export default async function HomePage() {
     <>
       {/* MOBILE-05 is a distinct composition, not a reflow of the desktop
           page, so the two surfaces are separate trees switched by breakpoint. */}
-      <MobileHome sections={sections} />
+      <MobileHome sections={sections} slotMedia={slotMedia} />
 
       <div className="homepage surface-desktop">
       {/* HERO SECTION */}
@@ -189,10 +211,11 @@ export default async function HomePage() {
 
             <div className="hero-media">
               {heroImageSlot && (
-                <MediaSlotImage
-                  slotId={heroImageSlot.id}
+                <SlotMedia
+                  url={media(heroImageSlot)?.url ?? null}
+                  sourceUrl={media(heroImageSlot)?.sourceUrl ?? null}
                   altText="The Bhasha Setu WRO project vehicle"
-                  aspectRatio={heroImageSlot.aspect_ratio ?? undefined}
+                  aspectRatio={heroImageSlot.aspect_ratio}
                   label="WRO vehicle photograph"
                 />
               )}
@@ -203,10 +226,11 @@ export default async function HomePage() {
                 <h2 className="wro-title">{getContent(wroSection, "title")}</h2>
                 <div className="wro-video">
                   {wroVideoSlot && (
-                    <MediaSlotImage
-                      slotId={wroVideoSlot.id}
+                    <SlotMedia
+                      url={media(wroVideoSlot)?.url ?? null}
+                      sourceUrl={media(wroVideoSlot)?.sourceUrl ?? null}
                       altText="Bhasha Setu WRO Future Innovators video"
-                      aspectRatio={wroVideoSlot.aspect_ratio ?? undefined}
+                      aspectRatio={wroVideoSlot.aspect_ratio}
                       label="WRO project video"
                       mediaType="video"
                     />
@@ -242,10 +266,11 @@ export default async function HomePage() {
                   <div className="learn-card" key={card.slotKey}>
                     <div className="card-icon">
                       {slot && (
-                        <MediaSlotImage
-                          slotId={slot.id}
+                        <SlotMedia
+                          url={media(slot)?.url ?? null}
+                          sourceUrl={media(slot)?.sourceUrl ?? null}
                           altText={card.altText}
-                          aspectRatio={slot.aspect_ratio ?? undefined}
+                          aspectRatio={slot.aspect_ratio}
                           label={card.placeholderLabel}
                         />
                       )}
@@ -283,10 +308,11 @@ export default async function HomePage() {
                       <figure className="testimonial" key={person.slotKey}>
                         <div className="testimonial-image">
                           {slot && (
-                            <MediaSlotImage
-                              slotId={slot.id}
+                            <SlotMedia
+                              url={media(slot)?.url ?? null}
+                              sourceUrl={media(slot)?.sourceUrl ?? null}
                               altText={`Portrait of ${person.name}`}
-                              aspectRatio={slot.aspect_ratio ?? undefined}
+                              aspectRatio={slot.aspect_ratio}
                               label="Portrait"
                             />
                           )}
@@ -335,10 +361,11 @@ export default async function HomePage() {
                 </div>
                 <div className="chat-robot">
                   {robotSlot && (
-                    <MediaSlotImage
-                      slotId={robotSlot.id}
+                    <SlotMedia
+                      url={media(robotSlot)?.url ?? null}
+                      sourceUrl={media(robotSlot)?.sourceUrl ?? null}
                       altText="The Bhasha Setu robot, your learning companion"
-                      aspectRatio={robotSlot.aspect_ratio ?? undefined}
+                      aspectRatio={robotSlot.aspect_ratio}
                       label="Robot"
                     />
                   )}

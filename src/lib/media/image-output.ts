@@ -9,6 +9,19 @@
 /** Longest edge, in pixels, of anything we send to storage. */
 export const MAX_OUTPUT_WIDTH = 2000;
 
+/**
+ * Whether a format carries an alpha channel, and so must be re-encoded as
+ * itself rather than as JPEG.
+ *
+ * Re-encoding one of these to JPEG discards transparency — the editor uploads
+ * a cut-out robot or logo and gets it back on a solid rectangle. Every step
+ * that re-encodes an image (the cropper, the browser downscaler, the server
+ * conform) asks this same question, so it is answered in one place.
+ */
+export function keepsAlpha(mimeType: string): boolean {
+  return mimeType === "image/png" || mimeType === "image/webp";
+}
+
 /** JPEG quality for canvas re-encoding. */
 export const OUTPUT_QUALITY = 0.86;
 

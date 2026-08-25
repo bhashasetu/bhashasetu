@@ -4,6 +4,7 @@ import {
   MAX_OUTPUT_WIDTH,
   OUTPUT_QUALITY,
   REENCODE_ABOVE_BYTES,
+  keepsAlpha,
 } from "./image-output";
 
 /**
@@ -51,10 +52,10 @@ export async function downscaleImage(file: File): Promise<File> {
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  // PNG keeps its transparency; everything else becomes JPEG, which is what
-  // makes a large photograph small.
-  const isPng = file.type === "image/png";
-  const outputType = isPng ? "image/png" : "image/jpeg";
+  // A format with alpha keeps its transparency; everything else becomes JPEG,
+  // which is what makes a large photograph small.
+  const alpha = keepsAlpha(file.type);
+  const outputType = alpha ? file.type : "image/jpeg";
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, outputType, OUTPUT_QUALITY)
@@ -66,7 +67,7 @@ export async function downscaleImage(file: File): Promise<File> {
   // say). Keep whichever is smaller.
   if (blob.size >= file.size) return file;
 
-  const name = isPng
+  const name = alpha
     ? file.name
     : file.name.replace(/\.[^.]+$/, "") + ".jpg";
 
