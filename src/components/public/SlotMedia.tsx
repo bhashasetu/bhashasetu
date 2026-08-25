@@ -30,6 +30,8 @@ export function SlotMedia({
   mediaType = "image",
   className,
   priority = false,
+  fit = "cover",
+  objectPosition,
 }: {
   /** Resolved signed URL, or null while the slot is still empty. */
   url: string | null;
@@ -47,6 +49,22 @@ export function SlotMedia({
   className?: string;
   /** Set on the one above-the-fold image so it is not lazy-loaded. */
   priority?: boolean;
+  /**
+   * How the image fills its frame.
+   *
+   * "cover" is right for a photograph, which should fill the frame with no
+   * gaps and may be cropped to do it. It is wrong for a cut-out on a
+   * transparent background: the subject does not reach the edges of its own
+   * file, so pinning the frame to a corner leaves the subject floating away
+   * from that corner — the frame is aligned and the artwork is not.
+   *
+   * "contain" shows the whole subject, and objectPosition then anchors it
+   * where the composition wants it, so the transparent margin collapses
+   * against the edges instead of pushing the subject inward.
+   */
+  fit?: "cover" | "contain";
+  /** e.g. "bottom right". Pairs with fit="contain" to anchor a cut-out. */
+  objectPosition?: string;
 }) {
   const paddingBottom = ratioToPadding(aspectRatio);
   const frameStyle: React.CSSProperties = paddingBottom
@@ -122,7 +140,7 @@ export function SlotMedia({
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           fetchPriority={priority ? "high" : undefined}
-          style={{ ...fillStyle, objectFit: "cover" }}
+          style={{ ...fillStyle, objectFit: fit, objectPosition }}
         />
       )}
     </div>

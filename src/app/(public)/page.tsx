@@ -274,6 +274,11 @@ export default async function HomePage() {
                   altText="The Bhasha Setu WRO project vehicle"
                   aspectRatio={heroImageSlot.aspect_ratio}
                   label="WRO vehicle photograph"
+                  // A cut-out, not a photograph that fills a frame: show all
+                  // of it, standing on the bottom of the band as the approved
+                  // reference has it.
+                  fit="contain"
+                  objectPosition="bottom center"
                 />
               )}
             </div>

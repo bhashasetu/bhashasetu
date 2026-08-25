@@ -85,6 +85,11 @@ export function MobileHome({
                 altText="The Bhasha Setu WRO project vehicle"
                 aspectRatio={heroImage.aspect_ratio}
                 label="WRO vehicle"
+                // The frame is pinned to the bottom-right of the hero, so the
+                // artwork is anchored there too — otherwise a cut-out's
+                // transparent margin leaves it floating off the corner.
+                fit="contain"
+                objectPosition="bottom right"
               />
             </div>
           )}

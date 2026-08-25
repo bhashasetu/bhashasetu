@@ -18,6 +18,64 @@ const MAX_WIDTH = 2000;
 /** How far off a ratio can be before we bother re-cropping (about 1%). */
 const RATIO_TOLERANCE = 0.01;
 
+/**
+ * An image that carries an alpha channel: trim its empty border, cap its size,
+ * keep its shape.
+ *
+ * sharp's trim() reads the corner pixel as the background, which for a cut-out
+ * is transparent, so this removes exactly the invisible padding and nothing
+ * else. An image with no such border comes back the same size, and one that is
+ * transparent everywhere would trim to nothing — both fall back to the source.
+ */
+async function conformCutout(
+  input: Buffer,
+  mimeType: string,
+  originalWidth: number,
+  originalHeight: number
+): Promise<ConformResult> {
+  const unchanged = {
+    buffer: input,
+    width: originalWidth,
+    height: originalHeight,
+    mimeType,
+    adjusted: false,
+    originalWidth,
+    originalHeight,
+  };
+
+  try {
+    const trimmed = sharp(input, { failOn: "none" }).rotate().trim();
+    const meta = await trimmed.metadata();
+    const width = meta.width ?? 0;
+    const height = meta.height ?? 0;
+    if (!width || !height) return unchanged;
+
+    const scale = Math.min(1, MAX_WIDTH / Math.max(width, height));
+    const outWidth = Math.max(1, Math.round(width * scale));
+    const outHeight = Math.max(1, Math.round(height * scale));
+
+    const pipeline =
+      scale < 1 ? trimmed.resize(outWidth, outHeight) : trimmed;
+    const buffer =
+      mimeType === "image/webp"
+        ? await pipeline.webp({ quality: 86 }).toBuffer()
+        : await pipeline.png({ compressionLevel: 9 }).toBuffer();
+
+    return {
+      buffer,
+      width: outWidth,
+      height: outHeight,
+      mimeType: mimeType === "image/webp" ? "image/webp" : "image/png",
+      adjusted: outWidth !== originalWidth || outHeight !== originalHeight,
+      originalWidth,
+      originalHeight,
+    };
+  } catch {
+    // Nothing to trim, or a source sharp cannot re-encode: store as uploaded.
+    return unchanged;
+  }
+}
+
 export function parseAspectRatio(aspectRatio: string | null | undefined) {
   if (!aspectRatio) return null;
   const [w, h] = aspectRatio.split(":").map(Number);
@@ -62,6 +120,23 @@ export async function conformImageToSlot(
   const originalHeight = meta.height ?? 0;
 
   if (!originalWidth || !originalHeight) return passthrough();
+
+  // A cut-out is not a photograph and must not be treated like one.
+  //
+  // Centre-cropping a transparent cut-out to a slot's ratio can slice through
+  // the subject, and padding it out to that ratio bakes empty space into the
+  // file — which is what left the hero robot floating away from the corner
+  // its layout pins it to. The frame was aligned; the artwork inside it was
+  // not, and no amount of object-fit could reach the margin because the
+  // margin was part of the image.
+  //
+  // So: trim the fully transparent border so the file's box is the subject,
+  // cap the size, and leave the ratio alone. The page then decides where the
+  // subject sits (see SlotMedia's fit and objectPosition), which it can only
+  // do once the image stops carrying its own invisible padding.
+  if (meta.hasAlpha) {
+    return conformCutout(input, mimeType, originalWidth, originalHeight);
+  }
 
   const target = parseAspectRatio(aspectRatio);
   const current = originalWidth / originalHeight;

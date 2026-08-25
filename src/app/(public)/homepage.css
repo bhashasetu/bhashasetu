@@ -714,13 +714,15 @@
   max-width: 60%;
 }
 
-/* The vehicle sits to the right of the copy and bleeds off the edge. */
+/* The vehicle sits to the right of the copy, seated on the bottom of the band
+   and running to the screen edge. MOBILE-05 draws it at a little over half the
+   screen width; 44% rendered it noticeably small against the copy. */
 .mhome-hero__media {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 44%;
-  max-width: 240px;
+  width: 54%;
+  max-width: 260px;
 }
 
 /* --- Language chooser --- */
