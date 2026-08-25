@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { adminCheckFailureResponse, badRequest, serverError } from "@/lib/api/respond";
 import { validateMediaUpload } from "@/lib/media/validate-upload";
 import { bucketForMediaType, buildStoragePath } from "@/lib/media/storage-paths";
-import { conformImageToSlot } from "@/lib/media/conform-image";
+import { conformImage } from "@/lib/media/conform-image";
 import { createAndAttachAsset } from "@/lib/media/attach-asset";
 
 export async function POST(request: Request) {
@@ -37,18 +37,18 @@ export async function POST(request: Request) {
 
   const bucket = bucketForMediaType(mediaType);
 
-  // When the upload targets a media slot, look the slot up first so the image
-  // can be fitted to the ratio that slot expects.
+  // The slot is looked up to check it accepts this kind of media. Its aspect
+  // ratio no longer changes the stored file — framing happens at render time
+  // around the asset's focal point.
   const slotIdRaw = formData.get("slot_id");
   const slotId = typeof slotIdRaw === "string" && slotIdRaw ? slotIdRaw : null;
 
-  let slot: { id: string; aspect_ratio: string | null; media_type: string } | null =
-    null;
+  let slot: { id: string; media_type: string } | null = null;
 
   if (slotId) {
     const { data, error } = await check.supabase
       .from("media_slots")
-      .select("id, aspect_ratio, media_type")
+      .select("id, media_type")
       .eq("id", slotId)
       .single();
 
@@ -69,14 +69,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // A slotless upload (a story thumbnail, say) still wants the same fitting
-  // treatment, so it names the ratio it needs directly.
-  const ratioRaw = formData.get("aspect_ratio");
-  const requestedRatio =
-    typeof ratioRaw === "string" && /^\d{1,2}:\d{1,2}$/.test(ratioRaw)
-      ? ratioRaw
-      : null;
-
   let body: Buffer = Buffer.from(await file.arrayBuffer());
   // The validator's type, not the browser's: a browser that reported no type
   // at all still gets the extension's canonical one.
@@ -84,20 +76,19 @@ export async function POST(request: Request) {
   let width: number | null = null;
   let height: number | null = null;
   let adjusted = false;
+  // A photograph covers its frame; a cut-out is shown whole. Detected from the
+  // file's alpha channel, and the editor can change it afterwards.
+  let fit: "cover" | "contain" = "cover";
 
-  // Fit the image to the slot rather than making an editor prepare it by hand.
   if (mediaType === "image") {
     try {
-      const conformed = await conformImageToSlot(
-        body,
-        slot?.aspect_ratio ?? requestedRatio,
-        file.type
-      );
+      const conformed = await conformImage(body, file.type);
       body = conformed.buffer;
       contentType = conformed.mimeType;
       width = conformed.width || null;
       height = conformed.height || null;
       adjusted = conformed.adjusted;
+      fit = conformed.fit;
     } catch {
       // A source we cannot decode is still worth storing as-is; the editor
       // can replace it. Better than rejecting the upload outright.
@@ -151,6 +142,7 @@ export async function POST(request: Request) {
       altText: typeof altText === "string" ? altText : null,
       caption: typeof caption === "string" ? caption : null,
       credit: typeof credit === "string" ? credit : null,
+      fit,
     },
     { slotId: slotIdForAttach, publish: shouldPublish }
   );

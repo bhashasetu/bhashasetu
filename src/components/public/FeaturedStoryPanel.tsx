@@ -17,6 +17,8 @@ export function FeaturedStoryPanel({
   badge,
   ctaText,
   posterUrl,
+  posterFit,
+  posterPosition,
   mediaUrl,
   mediaSourceUrl,
   duration,
@@ -26,6 +28,8 @@ export function FeaturedStoryPanel({
   badge: string | undefined;
   ctaText: string | undefined;
   posterUrl: string | null;
+  posterFit?: "cover" | "contain";
+  posterPosition?: string;
   mediaUrl: string | null;
   mediaSourceUrl: string | null;
   duration: string | null;
@@ -70,6 +74,8 @@ export function FeaturedStoryPanel({
         aspectRatio="3:4"
         label="Featured story"
         className="sv-featured__image"
+        fit={posterFit}
+        objectPosition={posterPosition}
       />
       <div className="sv-featured__content">
         <span className="sv-featured__badge">

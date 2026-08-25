@@ -13,6 +13,7 @@ import {
   type PageSection,
 } from "@/lib/cms/page-content";
 import { resolveSlotUrls } from "@/lib/media/resolve-slot-urls";
+import { framing } from "@/lib/media/framing";
 import {
   buildPageMetadata,
   absoluteUrl,
@@ -203,6 +204,7 @@ export default async function StoriesPage({
               aspectRatio={heroSlot?.aspect_ratio ?? "2:1"}
               label="Community photograph"
               priority
+              {...framing(slotMedia(heroSlot))}
               className="sv-hero__image"
             />
           </div>
@@ -285,6 +287,10 @@ export default async function StoriesPage({
                   key={story.id}
                   story={story}
                   thumbnailUrl={assetUrl(story.thumbnail_asset_id)}
+                  thumbnailFit={asset(story.thumbnail_asset_id)?.fit}
+                  thumbnailPosition={
+                    asset(story.thumbnail_asset_id)?.objectPosition
+                  }
                   mediaUrl={asset(story.media_asset_id)?.url ?? null}
                   mediaSourceUrl={asset(story.media_asset_id)?.sourceUrl ?? null}
                 />
@@ -328,6 +334,10 @@ export default async function StoriesPage({
                       key={story.id}
                       story={story}
                       thumbnailUrl={assetUrl(story.thumbnail_asset_id)}
+                  thumbnailFit={asset(story.thumbnail_asset_id)?.fit}
+                  thumbnailPosition={
+                    asset(story.thumbnail_asset_id)?.objectPosition
+                  }
                       audioUrl={asset(story.media_asset_id)?.url ?? null}
                       audioSourceUrl={
                         asset(story.media_asset_id)?.sourceUrl ?? null
@@ -352,6 +362,10 @@ export default async function StoriesPage({
               badge={findContent(featuredSection, "label")}
               ctaText={findContent(featuredSection, "cta_text")}
               posterUrl={assetUrl(featured.thumbnail_asset_id)}
+              posterFit={asset(featured.thumbnail_asset_id)?.fit}
+              posterPosition={
+                asset(featured.thumbnail_asset_id)?.objectPosition
+              }
               mediaUrl={asset(featured.media_asset_id)?.url ?? null}
               mediaSourceUrl={asset(featured.media_asset_id)?.sourceUrl ?? null}
               duration={formatDuration(featured.duration_seconds)}
@@ -399,6 +413,7 @@ export default async function StoriesPage({
                   altText={findContent(teamSection, `photo_${i + 1}_caption`) ?? ""}
                   aspectRatio={slot?.aspect_ratio ?? "4:3"}
                   label="Field photograph"
+                  {...framing(slotMedia(slot))}
                 />
                 <figcaption>
                   {findContent(teamSection, `photo_${i + 1}_caption`)}

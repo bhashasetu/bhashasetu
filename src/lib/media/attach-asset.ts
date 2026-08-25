@@ -29,6 +29,12 @@ export type AttachInput = {
   altText?: string | null;
   caption?: string | null;
   credit?: string | null;
+  /**
+   * How the image fills a frame: 'cover' for a photograph, 'contain' for a
+   * cut-out. Detected at upload from whether the file has an alpha channel;
+   * an editor can change it afterwards. Omitted for audio and video.
+   */
+  fit?: "cover" | "contain" | null;
 };
 
 export type AttachOptions = {
@@ -75,6 +81,7 @@ export async function createAndAttachAsset(
       alt_text: input.altText || null,
       caption: input.caption || null,
       credit: input.credit || null,
+      fit: input.fit ?? "cover",
       status: "draft",
       created_by: userId,
     })

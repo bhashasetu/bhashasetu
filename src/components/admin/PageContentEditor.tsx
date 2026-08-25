@@ -31,7 +31,15 @@ export type MediaSlot = {
     | {
         status: string | null;
         created_at?: string | null;
-        media_asset?: { id: string; filename: string; title?: string | null } | null;
+        media_asset?: {
+          id: string;
+          filename: string;
+          title?: string | null;
+          media_type?: string | null;
+          focal_x?: number | string | null;
+          focal_y?: number | string | null;
+          fit?: string | null;
+        } | null;
       }[]
     | null;
   generation_prompts?: { provider: string; model_name: string | null }[] | null;

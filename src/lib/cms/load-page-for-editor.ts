@@ -49,7 +49,7 @@ export async function loadPageForEditor(
           slot_media_assignments(
             status,
             created_at,
-            media_asset:media_assets(id, filename, title)
+            media_asset:media_assets(id, filename, title, media_type, focal_x, focal_y, fit)
           ),
           generation_prompts(provider, model_name)
         )

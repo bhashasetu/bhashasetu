@@ -27,6 +27,8 @@ export function StoryPlayer({
   label = "Interview",
   duration,
   frameClassName = "story-card__media",
+  posterFit,
+  posterPosition,
 }: {
   /** Signed URL for a file we host. */
   url: string | null;
@@ -44,6 +46,9 @@ export function StoryPlayer({
    * differ only in what wraps it.
    */
   frameClassName?: string;
+  /** The poster's own framing, from its media asset. */
+  posterFit?: "cover" | "contain";
+  posterPosition?: string;
 }) {
   const [playing, setPlaying] = useState(false);
 
@@ -90,6 +95,8 @@ export function StoryPlayer({
         altText={title}
         aspectRatio={aspectRatio}
         label={label}
+        fit={posterFit}
+        objectPosition={posterPosition}
       />
       {playable ? (
         <button

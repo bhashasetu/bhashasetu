@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { resolveConfiguredProvider } from "@/lib/media/image-providers";
-import { conformImageToSlot } from "@/lib/media/conform-image";
+import { conformImage } from "@/lib/media/conform-image";
 
 export async function POST(request: Request) {
   const adminCheck = await requireAdmin();
@@ -59,19 +59,10 @@ export async function POST(request: Request) {
     }
     const rawBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
-    // Providers return their own fixed sizes (DALL-E squares, for one), so fit
-    // the result to the ratio this slot expects before storing it.
-    const { data: slotRow } = await supabase
-      .from("media_slots")
-      .select("aspect_ratio")
-      .eq("id", slotId)
-      .single();
-
-    const conformed = await conformImageToSlot(
-      rawBuffer,
-      slotRow?.aspect_ratio ?? null,
-      mimeType
-    ).catch(() => null);
+    // Providers return their own fixed sizes (DALL-E squares, for one). They
+    // are capped for storage but not cropped: the slot frames them at render
+    // time around the asset's focal point, like any other upload.
+    const conformed = await conformImage(rawBuffer, mimeType).catch(() => null);
 
     const imageBuffer = conformed?.buffer ?? rawBuffer;
     const storedMime = conformed?.mimeType ?? mimeType;
@@ -104,6 +95,7 @@ export async function POST(request: Request) {
         storage_bucket: "media-images",
         storage_path: `generated/${filename}`,
         media_type: "image",
+        fit: conformed?.fit ?? "cover",
         title: `Generated image: ${prompt.prompt_text.substring(0, 50)}...`,
         status: "draft",
         created_by: user.id,

@@ -22,7 +22,34 @@ export type ResolvedSlotMedia = {
   url: string | null;
   /** Address of a hosted video (YouTube/Vimeo), null for a stored object. */
   sourceUrl: string | null;
+  /** How the asset fills its frame; see media_assets.fit. */
+  fit: "cover" | "contain";
+  /** CSS object-position built from the asset's focal point. */
+  objectPosition: string;
 };
+
+/**
+ * Turn an asset's stored framing into the two CSS values that apply it.
+ *
+ * The focal point is the pixel that must stay in shot. Expressed as an
+ * object-position percentage, the browser crops around it at whatever size and
+ * ratio the frame happens to be — so one stored file frames correctly in every
+ * slot and at every viewport, which a crop baked in at upload never could.
+ */
+function framingOf(asset: {
+  fit?: string | null;
+  focal_x?: number | string | null;
+  focal_y?: number | string | null;
+}): { fit: "cover" | "contain"; objectPosition: string } {
+  const pct = (value: number | string | null | undefined) => {
+    const n = typeof value === "string" ? Number(value) : value;
+    return Number.isFinite(n) ? Math.min(100, Math.max(0, (n as number) * 100)) : 50;
+  };
+  return {
+    fit: asset.fit === "contain" ? "contain" : "cover",
+    objectPosition: `${pct(asset.focal_x)}% ${pct(asset.focal_y)}%`,
+  };
+}
 
 export async function resolveSlotUrls(
   supabase: SupabaseClient,
@@ -53,7 +80,7 @@ export async function resolveSlotUrls(
 
   const { data: assets } = await supabase
     .from("media_assets")
-    .select("id, storage_bucket, storage_path, status, source_type, source_url")
+    .select("id, storage_bucket, storage_path, status, source_type, source_url, fit, focal_x, focal_y")
     .in("id", [...new Set(assetIdBySlot.values())])
     .eq("status", "published");
 
@@ -89,15 +116,17 @@ export async function resolveSlotUrls(
     const asset = assetById.get(assetId);
     if (!asset) continue;
 
+    const framing = framingOf(asset);
+
     if (asset.source_type === "external" && asset.source_url) {
-      resolved.set(slotId, { url: null, sourceUrl: asset.source_url });
+      resolved.set(slotId, { url: null, sourceUrl: asset.source_url, ...framing });
       continue;
     }
 
     const url = signedByBucketPath.get(
       `${asset.storage_bucket}:${asset.storage_path}`
     );
-    if (url) resolved.set(slotId, { url, sourceUrl: null });
+    if (url) resolved.set(slotId, { url, sourceUrl: null, ...framing });
   }
 
   return resolved;

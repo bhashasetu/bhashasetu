@@ -3,6 +3,7 @@ import { SlotMedia } from "@/components/public/SlotMedia";
 import { StoryPlayer } from "@/components/public/StoryPlayer";
 import { SocialLinks } from "@/components/public/SocialLinks";
 import type { ResolvedSlotMedia } from "@/lib/media/resolve-slot-urls";
+import { framing } from "@/lib/media/framing";
 import { renderAccented } from "@/lib/content/accent";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -14,6 +15,8 @@ export type MobileStory = {
   languageName: string | null;
   duration: string | null;
   thumbnailUrl: string | null;
+  thumbnailFit?: "cover" | "contain";
+  thumbnailPosition?: string;
   mediaUrl: string | null;
   mediaSourceUrl: string | null;
 };
@@ -85,11 +88,7 @@ export function MobileHome({
                 altText="The Bhasha Setu WRO project vehicle"
                 aspectRatio={heroImage.aspect_ratio}
                 label="WRO vehicle"
-                // The frame is pinned to the bottom-right of the hero, so the
-                // artwork is anchored there too — otherwise a cut-out's
-                // transparent margin leaves it floating off the corner.
-                fit="contain"
-                objectPosition="bottom right"
+                {...framing(media(heroImage))}
               />
             </div>
           )}
@@ -131,6 +130,7 @@ export function MobileHome({
                       altText={`${lang.name} artwork`}
                       aspectRatio={s.aspect_ratio}
                       label={lang.name}
+                      {...framing(media(s))}
                     />
                   )}
                 </div>
@@ -172,6 +172,7 @@ export function MobileHome({
                 altText="Warli artwork"
                 aspectRatio={wordImage.aspect_ratio}
                 label="Artwork"
+                {...framing(media(wordImage))}
               />
             </div>
           )}
@@ -215,6 +216,7 @@ export function MobileHome({
                 altText="The Bhasha Setu robot, your learning companion"
                 aspectRatio={robot.aspect_ratio}
                 label="Robot"
+                {...framing(media(robot))}
               />
             )}
           </div>
@@ -256,6 +258,8 @@ export function MobileHome({
                     label="Story"
                     duration={story.duration}
                     frameClassName="mhome-story__thumb"
+                    posterFit={story.thumbnailFit}
+                    posterPosition={story.thumbnailPosition}
                   />
                   <p className="mhome-story__title">{story.title}</p>
                   {story.languageName && (

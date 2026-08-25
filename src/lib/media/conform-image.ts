@@ -6,17 +6,20 @@ export type ConformResult = {
   width: number;
   height: number;
   mimeType: string;
-  /** True when the source did not already match the slot's ratio. */
+  /** True when the bytes were re-encoded rather than stored as uploaded. */
   adjusted: boolean;
   originalWidth: number;
   originalHeight: number;
+  /**
+   * How this image should fill a frame. A photograph covers it and may be
+   * cropped; a cut-out, which has transparency, must be seen whole. Stored on
+   * the asset as its default and overridable by an editor.
+   */
+  fit: "cover" | "contain";
 };
 
 /** Longest edge we store for a slot image. Keeps files small without visible loss. */
 const MAX_WIDTH = 2000;
-
-/** How far off a ratio can be before we bother re-cropping (about 1%). */
-const RATIO_TOLERANCE = 0.01;
 
 /**
  * An image that carries an alpha channel: trim its empty border, cap its size,
@@ -41,25 +44,37 @@ async function conformCutout(
     adjusted: false,
     originalWidth,
     originalHeight,
+    fit: "contain" as const,
   };
 
   try {
-    const trimmed = sharp(input, { failOn: "none" }).rotate().trim();
-    const meta = await trimmed.metadata();
-    const width = meta.width ?? 0;
-    const height = meta.height ?? 0;
-    if (!width || !height) return unchanged;
+    // toBuffer reports the dimensions of what was actually produced.
+    // metadata() would not: on an unexecuted pipeline it describes the source,
+    // so a trimmed cut-out recorded its untrimmed size against the asset.
+    const { data, info } = await sharp(input, { failOn: "none" })
+      .rotate()
+      .trim()
+      .toBuffer({ resolveWithObject: true });
 
-    const scale = Math.min(1, MAX_WIDTH / Math.max(width, height));
-    const outWidth = Math.max(1, Math.round(width * scale));
-    const outHeight = Math.max(1, Math.round(height * scale));
+    if (!info.width || !info.height) return unchanged;
 
-    const pipeline =
-      scale < 1 ? trimmed.resize(outWidth, outHeight) : trimmed;
-    const buffer =
-      mimeType === "image/webp"
-        ? await pipeline.webp({ quality: 86 }).toBuffer()
-        : await pipeline.png({ compressionLevel: 9 }).toBuffer();
+    const scale = Math.min(1, MAX_WIDTH / Math.max(info.width, info.height));
+    let buffer = data;
+    let outWidth = info.width;
+    let outHeight = info.height;
+
+    if (scale < 1) {
+      outWidth = Math.max(1, Math.round(info.width * scale));
+      outHeight = Math.max(1, Math.round(info.height * scale));
+      const resized = sharp(data, { failOn: "none" }).resize(outWidth, outHeight);
+      buffer =
+        mimeType === "image/webp"
+          ? await resized.webp({ quality: 86 }).toBuffer()
+          : await resized.png({ compressionLevel: 9 }).toBuffer();
+    } else if (mimeType === "image/webp") {
+      // trim() emits the input format; keep WebP as WebP.
+      buffer = await sharp(data, { failOn: "none" }).webp({ quality: 86 }).toBuffer();
+    }
 
     return {
       buffer,
@@ -69,6 +84,7 @@ async function conformCutout(
       adjusted: outWidth !== originalWidth || outHeight !== originalHeight,
       originalWidth,
       originalHeight,
+      fit: "contain" as const,
     };
   } catch {
     // Nothing to trim, or a source sharp cannot re-encode: store as uploaded.
@@ -76,27 +92,19 @@ async function conformCutout(
   }
 }
 
-export function parseAspectRatio(aspectRatio: string | null | undefined) {
-  if (!aspectRatio) return null;
-  const [w, h] = aspectRatio.split(":").map(Number);
-  if (!w || !h || !Number.isFinite(w) || !Number.isFinite(h)) return null;
-  return w / h;
-}
-
 /**
- * Fit an uploaded image to the aspect ratio its media slot expects.
+ * Prepare an uploaded image for storage.
  *
- * An editor should not have to prepare assets by hand: whatever they upload is
- * centre-cropped to the slot's ratio ("cover", so the frame is always filled
- * and nothing is letterboxed) and capped at MAX_WIDTH. An image that already
- * matches the ratio is only re-encoded if it exceeds the cap.
+ * Deliberately minimal: cap the size, keep the shape, and say which kind of
+ * image it is. It takes no aspect ratio, because framing is no longer decided
+ * here — the browser crops around the asset's focal point at render time, so
+ * one stored file serves every slot and every viewport.
  *
- * Animated GIFs and SVGs are returned untouched — cropping them frame-by-frame
- * or rasterising vector art would do more harm than the ratio mismatch.
+ * Animated GIFs and SVGs are returned untouched: rasterising vector art or
+ * re-encoding frame by frame would do more harm than good.
  */
-export async function conformImageToSlot(
+export async function conformImage(
   input: Buffer,
-  aspectRatio: string | null | undefined,
   mimeType: string
 ): Promise<ConformResult> {
   const passthrough = (reason?: string) => ({
@@ -107,6 +115,7 @@ export async function conformImageToSlot(
     adjusted: false,
     originalWidth: 0,
     originalHeight: 0,
+    fit: "cover" as const,
     reason,
   });
 
@@ -138,13 +147,23 @@ export async function conformImageToSlot(
     return conformCutout(input, mimeType, originalWidth, originalHeight);
   }
 
-  const target = parseAspectRatio(aspectRatio);
-  const current = originalWidth / originalHeight;
-  const ratioMatches =
-    target === null || Math.abs(current - target) / target < RATIO_TOLERANCE;
-  const withinCap = originalWidth <= MAX_WIDTH;
+  // A photograph: cap the size, keep the shape.
+  //
+  // This used to centre-crop to the slot's aspect ratio. That decided the
+  // framing once, permanently, against whichever slot the file was first
+  // uploaded to — pixels thrown away, one ratio locked in, and the choice of
+  // what to keep left to sharp's saliency guess. A speaker standing off to one
+  // side could simply lose their head, and an editor had no way to correct it
+  // short of preparing a new file by hand.
+  //
+  // The crop now happens in the browser, every time the image is drawn, around
+  // the asset's focal point (media_assets.focal_x / focal_y). One upload
+  // therefore frames correctly in every slot it is used in and at every
+  // viewport, including slots that do not exist yet — which is what the ratio
+  // crop made impossible.
+  const withinCap = Math.max(originalWidth, originalHeight) <= MAX_WIDTH;
 
-  if (ratioMatches && withinCap) {
+  if (withinCap) {
     return {
       buffer: input,
       width: originalWidth,
@@ -153,35 +172,19 @@ export async function conformImageToSlot(
       adjusted: false,
       originalWidth,
       originalHeight,
+      fit: "cover" as const,
     };
   }
 
-  // Work out the output box: keep the source's detail, honour the target
-  // ratio, and never upscale beyond the original.
-  let width: number;
-  let height: number;
-
-  if (target === null) {
-    width = Math.min(originalWidth, MAX_WIDTH);
-    height = Math.round(width / current);
-  } else if (current > target) {
-    // Source is wider than the slot: height is the limiting dimension.
-    height = Math.min(originalHeight, Math.round(MAX_WIDTH / target));
-    width = Math.round(height * target);
-  } else {
-    width = Math.min(originalWidth, MAX_WIDTH);
-    height = Math.round(width / target);
-  }
+  const scale = MAX_WIDTH / Math.max(originalWidth, originalHeight);
+  const width = Math.max(1, Math.round(originalWidth * scale));
+  const height = Math.max(1, Math.round(originalHeight * scale));
 
   const pipeline = sharp(input, { failOn: "none" })
-    .rotate() // honour EXIF orientation before cropping
-    .resize(width, height, { fit: "cover", position: "attention" });
+    .rotate() // honour EXIF orientation
+    .resize(width, height);
 
-  // A format that carries alpha is re-encoded as itself. Sending a
-  // transparent WebP down the JPEG branch flattened it onto black, so a
-  // cut-out uploaded as WebP came back on a solid rectangle.
   const outputType = keepsAlpha(mimeType) ? mimeType : "image/jpeg";
-
   const buffer =
     outputType === "image/png"
       ? await pipeline.png({ compressionLevel: 9 }).toBuffer()
@@ -197,5 +200,6 @@ export async function conformImageToSlot(
     adjusted: true,
     originalWidth,
     originalHeight,
+    fit: "cover" as const,
   };
 }

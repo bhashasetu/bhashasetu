@@ -38,11 +38,15 @@ function Waveform({ seed }: { seed: string }) {
 export function AudioStoryCard({
   story,
   thumbnailUrl,
+  thumbnailFit,
+  thumbnailPosition,
   audioUrl,
   audioSourceUrl,
 }: {
   story: StoryRow;
   thumbnailUrl: string | null;
+  thumbnailFit?: "cover" | "contain";
+  thumbnailPosition?: string;
   /** Signed URL for a file we host. */
   audioUrl: string | null;
   /** A song or clip published as a hosted video (YouTube/Vimeo). */
@@ -66,6 +70,8 @@ export function AudioStoryCard({
             }
             aspectRatio="1:1"
             label="Speaker"
+            fit={thumbnailFit}
+            objectPosition={thumbnailPosition}
           />
         </div>
 

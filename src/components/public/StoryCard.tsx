@@ -12,11 +12,15 @@ import { formatDuration, type StoryRow } from "@/lib/stories/queries";
 export function StoryCard({
   story,
   thumbnailUrl,
+  thumbnailFit,
+  thumbnailPosition,
   mediaUrl,
   mediaSourceUrl,
 }: {
   story: StoryRow;
   thumbnailUrl: string | null;
+  thumbnailFit?: "cover" | "contain";
+  thumbnailPosition?: string;
   /** Signed URL for a recording we host. */
   mediaUrl: string | null;
   /** Address of a hosted video (YouTube/Vimeo). */
@@ -41,6 +45,8 @@ export function StoryCard({
         aspectRatio="16:9"
         label="Interview"
         duration={duration}
+        posterFit={thumbnailFit}
+        posterPosition={thumbnailPosition}
       />
 
       <div className="story-card__body">

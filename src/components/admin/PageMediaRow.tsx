@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import Link from "next/link";
 import { AdminMediaPreview } from "./AdminMediaPreview";
+import { FocalPointPicker } from "./FocalPointPicker";
 import { uploadMediaDirect, shouldUploadDirect } from "@/lib/media/direct-upload";
 import { downscaleImage } from "@/lib/media/downscale-image";
 import type { MediaSlot } from "./PageContentEditor";
@@ -14,6 +15,12 @@ import type { MediaSlot } from "./PageContentEditor";
  * editor explicitly clicks Save — the same edit-then-save pattern the text
  * fields above it use, rather than uploading the instant a file is chosen.
  */
+/** Numeric columns arrive as strings over PostgREST; fall back if absent. */
+function num(value: number | string | null | undefined, fallback: number) {
+  const n = typeof value === "string" ? Number(value) : value;
+  return Number.isFinite(n) ? (n as number) : fallback;
+}
+
 export function PageMediaRow({
   pageId,
   slot,
@@ -42,6 +49,11 @@ export function PageMediaRow({
       )[0] ?? null;
   const asset = assignment?.media_asset;
   const prompt = slot.generation_prompts?.[0];
+  // 'thumbnail' and 'hero_image' slots hold images too.
+  const isImage =
+    (asset?.media_type ?? slot.media_type) === "image" ||
+    slot.media_type === "thumbnail" ||
+    slot.media_type === "hero_image";
 
   function handleChoose(e: ChangeEvent<HTMLInputElement>) {
     setFile(e.target.files?.[0] ?? null);
@@ -108,7 +120,20 @@ export function PageMediaRow({
   return (
     <div className="hp-media">
       <div className="hp-media__preview">
-        {asset ? (
+        {asset && isImage ? (
+          // An image is not just previewed here, it is framed here: one click
+          // sets the point every slot crops around, which is what lets a single
+          // upload look right on desktop and mobile alike.
+          <FocalPointPicker
+            key={asset.id}
+            assetId={asset.id}
+            alt={asset.title || asset.filename}
+            initialX={num(asset.focal_x, 0.5)}
+            initialY={num(asset.focal_y, 0.5)}
+            initialFit={asset.fit === "contain" ? "contain" : "cover"}
+            aspectRatio={slot.aspect_ratio}
+          />
+        ) : asset ? (
           <AdminMediaPreview
             key={asset.id}
             assetId={asset.id}
@@ -176,10 +201,10 @@ export function PageMediaRow({
           )}
         </div>
 
-        {slot.aspect_ratio && slot.media_type !== "video" && (
+        {isImage && (
           <p className="hp-media__hint">
-            Any size is fine — it&apos;s centre-cropped to {slot.aspect_ratio}{" "}
-            automatically.
+            Any size is fine. Nothing is cropped on upload — click the preview
+            to set the point each page crops around.
           </p>
         )}
         {slot.media_type === "video" && (

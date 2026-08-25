@@ -608,7 +608,80 @@
 
 .hp-media:first-child { border-top: none; }
 
+/* Wide enough to click a point on accurately; the picker is a control, not
+   a thumbnail. */
 .hp-media__preview { width: 96px; }
+.hp-media__preview:has(.focal) { width: 200px; }
+
+/* ===== FOCAL POINT PICKER =====
+   Click the part of an image that must stay in shot. Every slot crops around
+   it at render time, so one upload frames correctly on every surface. */
+.focal { display: flex; flex-direction: column; gap: 6px; }
+
+.focal__frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0;
+  padding: 0;
+  border: 1px solid var(--admin-border, #d8dee6);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f2f4f7;
+  cursor: crosshair;
+}
+
+.focal__frame:focus-visible {
+  outline: 2px solid var(--color-accent, #E8A530);
+  outline-offset: 2px;
+}
+
+.focal__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.focal__marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(20, 40, 80, 0.75);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.focal__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.focal__fit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.focal__readout { color: var(--admin-text-light, #6b7686); }
+
+.focal__status { font-weight: 600; }
+.focal__status--ok { color: #2D7D4A; }
+.focal__status--error { color: #B3261E; }
+
+.focal__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--admin-text-light, #6b7686);
+}
 
 .hp-media__body { min-width: 0; }
 

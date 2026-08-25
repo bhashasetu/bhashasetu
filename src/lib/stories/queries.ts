@@ -227,7 +227,27 @@ export type ResolvedStoryMedia = {
   url: string | null;
   /** Address of a hosted video (YouTube/Vimeo), null for a stored file. */
   sourceUrl: string | null;
+  /** How the asset fills its frame; see media_assets.fit. */
+  fit: "cover" | "contain";
+  /** CSS object-position built from the asset's focal point. */
+  objectPosition: string;
 };
+
+/** Same framing rule story thumbnails need as any other managed image. */
+function framingOf(asset: {
+  fit?: string | null;
+  focal_x?: number | string | null;
+  focal_y?: number | string | null;
+}): { fit: "cover" | "contain"; objectPosition: string } {
+  const pct = (value: number | string | null | undefined) => {
+    const n = typeof value === "string" ? Number(value) : value;
+    return Number.isFinite(n) ? Math.min(100, Math.max(0, (n as number) * 100)) : 50;
+  };
+  return {
+    fit: asset.fit === "contain" ? "contain" : "cover",
+    objectPosition: `${pct(asset.focal_x)}% ${pct(asset.focal_y)}%`,
+  };
+}
 
 /**
  * Resolve a batch of story media assets in one pass.
@@ -247,7 +267,7 @@ export async function resolveStoryAssetUrls(
 
   const { data: assets } = await supabase
     .from("media_assets")
-    .select("id, storage_bucket, storage_path, source_type, source_url")
+    .select("id, storage_bucket, storage_path, source_type, source_url, fit, focal_x, focal_y")
     .in("id", ids)
     .eq("status", "published");
 
@@ -277,12 +297,13 @@ export async function resolveStoryAssetUrls(
   );
 
   for (const asset of assets) {
+    const framing = framingOf(asset);
     if (asset.source_type === "external" && asset.source_url) {
-      resolved.set(asset.id, { url: null, sourceUrl: asset.source_url });
+      resolved.set(asset.id, { url: null, sourceUrl: asset.source_url, ...framing });
       continue;
     }
     const url = signed.get(`${asset.storage_bucket}:${asset.storage_path}`);
-    if (url) resolved.set(asset.id, { url, sourceUrl: null });
+    if (url) resolved.set(asset.id, { url, sourceUrl: null, ...framing });
   }
 
   return resolved;
