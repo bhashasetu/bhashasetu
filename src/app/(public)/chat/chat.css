@@ -185,6 +185,15 @@
   overflow: hidden;
 }
 
+.chat-card__prose {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  color: var(--color-text-dark);
+}
+
 .chat-words {
   width: 100%;
   border-collapse: collapse;

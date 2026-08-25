@@ -34,6 +34,46 @@ const MODULES: {
   },
 ];
 
+/**
+ * The thread, as the model needs to see it.
+ *
+ * A word card has no prose of its own unless a model wrote one, so it is
+ * summarised by what was actually found — enough for "give me another" to know
+ * what "another" would be, without replaying the whole table. Errors and
+ * greetings are left out: they are not part of the conversation's meaning.
+ */
+function asHistory(
+  messages: Message[]
+): { role: "user" | "assistant"; content: string }[] {
+  const out: { role: "user" | "assistant"; content: string }[] = [];
+
+  for (const m of messages) {
+    if (m.role === "user") {
+      out.push({ role: "user", content: m.text });
+      continue;
+    }
+    if (m.role !== "assistant") continue;
+
+    const reply = m.reply;
+    if (reply.kind === "verified_words") {
+      const found = reply.entries
+        .map((e) => e.english_meaning ?? e.transliteration ?? "")
+        .filter(Boolean)
+        .join(", ");
+      out.push({
+        role: "assistant",
+        content: reply.prose ?? `Showed the entry for: ${found}`,
+      });
+    } else if (reply.kind === "help_answer") {
+      out.push({ role: "assistant", content: reply.answer });
+    } else if (reply.kind === "no_result") {
+      out.push({ role: "assistant", content: "That is not in the collection." });
+    }
+  }
+
+  return out.slice(-6);
+}
+
 /** Where the assistant sends people when a page will serve them better. */
 const QUICK_ACTIONS = [
   { href: "/learn", label: "Explore languages" },
@@ -127,6 +167,9 @@ function WordCard({
 }) {
   return (
     <div className="chat-card">
+      {/* The sentence, when a model wrote one. The table below it is the
+          answer either way — this only introduces it. */}
+      {reply.prose && <p className="chat-card__prose">{reply.prose}</p>}
       <table className="chat-words">
         <thead>
           <tr>
@@ -515,7 +558,14 @@ export function ChatPanel({
       const res = await fetch("/api/public/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question, locale, mode }),
+        body: JSON.stringify({
+          message: question,
+          locale,
+          mode,
+          // So "give me another" means something. Held here in the browser and
+          // sent with the question — the server keeps no transcript.
+          history: asHistory(messages),
+        }),
       });
       const body = await res.json().catch(() => ({}));
 

@@ -164,6 +164,51 @@ export async function answerFromFaqs(options: {
 }
 
 /**
+ * Put verified content into a sentence.
+ *
+ * The facts are already decided — deterministic search found them — so this is
+ * a wording job, and the prompt says as much. History is included so follow-ups
+ * work ("give me another", "say that again"); it is capped by the caller and
+ * held only in the visitor's browser, so no conversation is stored anywhere.
+ *
+ * A failure here is not an error the visitor sees. The caller falls back to the
+ * card and the stored answer, which were correct before a model was involved
+ * and remain correct without one.
+ */
+export async function phrase(options: {
+  model: string;
+  system: string;
+  question: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  maxWords: number;
+}): Promise<SarvamResult<string>> {
+  const client = clientOrNull();
+  if (!client) return NO_KEY;
+
+  try {
+    const res = await client.chat.completions({
+      model: options.model as "sarvam-105b",
+      messages: [
+        { role: "system", content: options.system },
+        ...options.history,
+        { role: "user", content: options.question },
+      ],
+      temperature: 0.3,
+      max_tokens: Math.ceil(options.maxWords * 2.5),
+    });
+
+    const content = res.choices?.[0]?.message?.content;
+    const text = typeof content === "string" ? content.trim() : "";
+    if (!text) {
+      return { ok: false, status: null, detail: "Empty reply." };
+    }
+    return { ok: true, value: text };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/**
  * Read an approved answer aloud.
  *
  * The caller passes text that came out of the database, never anything a

@@ -3,7 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { routeIntent, isGreeting, type ChatMode } from "@/lib/chat/intent";
 import { matchFaq, recordUnanswered } from "@/lib/chat/faq-match";
 import { getPublicChatConfig } from "@/lib/chat/config";
-import { answerFromFaqs } from "@/lib/chat/sarvam";
+import { answerFromFaqs, phrase } from "@/lib/chat/sarvam";
+import {
+  groundEntries,
+  groundFaq,
+  introducesNativeText,
+  systemPrompt,
+} from "@/lib/chat/grounding";
 import { getPublishedFaqs, faqInLocale } from "@/lib/faq/queries";
 import { isFaqLocale, type FaqLocale } from "@/lib/faq/queries";
 import { pronunciationAudioIds, searchEntries } from "@/lib/entries/search";
@@ -34,6 +40,8 @@ export type ChatReply =
       intent: "word_lookup";
       term: string;
       matchedOn: string;
+      /** The sentence around the card. Absent when no model was involved. */
+      prose?: string;
       entries: {
         id: string;
         native_text: string;
@@ -66,6 +74,102 @@ export type ChatReply =
 /** Bounded so a long paste cannot become a long, expensive query. */
 const MAX_MESSAGE = 500;
 
+/**
+ * How much of the conversation travels with each question.
+ *
+ * Enough for "give me another" and "say that again" to mean something, and
+ * bounded because every turn is tokens on a billed call. The history lives in
+ * the visitor's browser and is sent with the request: nothing is stored on the
+ * server, so there are no transcripts to keep, leak or delete.
+ */
+const MAX_HISTORY_TURNS = 6;
+
+function readHistory(value: unknown): { role: "user" | "assistant"; content: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (t): t is { role: "user" | "assistant"; content: string } =>
+        !!t &&
+        (t.role === "user" || t.role === "assistant") &&
+        typeof t.content === "string" &&
+        t.content.trim().length > 0
+    )
+    .slice(-MAX_HISTORY_TURNS)
+    .map((t) => ({ role: t.role, content: t.content.slice(0, MAX_MESSAGE) }));
+}
+
+/**
+ * The sentence that goes above a card or an approved answer.
+ *
+ * Everything here is optional in the strictest sense: if the model is off, the
+ * budget is spent, Sarvam is down, or the reply fails the guard, this returns
+ * undefined and the visitor gets the card and the stored answer — which is what
+ * they got before any of this existed, and is still correct.
+ *
+ * The guard is the part worth reading. A model told not to write Warli has been
+ * asked, not stopped; a reply that puts native script into an English sentence
+ * is discarded here rather than shown. See lib/chat/grounding.ts for what that
+ * check can and cannot see.
+ */
+async function sentenceAround(options: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  config: Awaited<ReturnType<typeof getPublicChatConfig>>;
+  mode: "learn" | "help";
+  locale: FaqLocale;
+  question: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  entries?: Awaited<ReturnType<typeof searchEntries>>["data"];
+  faq?: { question: string; answer: string };
+}): Promise<string | undefined> {
+  const model = options.config.chatModel?.trim();
+  if (!options.config.llmEnabled || !model) return undefined;
+
+  let grounding;
+  if (options.mode === "learn") {
+    if (!options.entries?.length) return undefined;
+    // Language names, so the sentence can say "in Katkari" without the model
+    // having to infer it from an id.
+    const ids = [
+      ...new Set(options.entries.map((e) => e.language_id).filter(Boolean)),
+    ] as string[];
+    const { data: langs } = ids.length
+      ? await options.supabase.from("languages").select("id, name").in("id", ids)
+      : { data: [] };
+    const names = new Map<string, string>(
+      (langs ?? []).map((l) => [l.id as string, l.name as string])
+    );
+    grounding = groundEntries(options.entries, names, options.locale);
+  } else {
+    if (!options.faq) return undefined;
+    grounding = groundFaq(options.faq.question, options.faq.answer);
+  }
+
+  if (!grounding.hasFacts) return undefined;
+
+  const { data: allowed } = await options.supabase.rpc("chat_claim_call", {
+    kind: "llm",
+  });
+  if (allowed !== true) return undefined;
+
+  const result = await phrase({
+    model,
+    system: systemPrompt({
+      mode: options.mode,
+      locale: options.locale,
+      maxWords: options.config.maxResponseWords,
+      facts: grounding.facts,
+    }),
+    question: options.question,
+    history: options.history,
+    maxWords: options.config.maxResponseWords,
+  });
+
+  if (!result.ok) return undefined;
+  if (introducesNativeText(result.value, options.locale)) return undefined;
+
+  return result.value;
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
 
@@ -76,6 +180,7 @@ export async function POST(request: Request) {
   // caller: fall back to inferring intent from the sentence, as before.
   const mode: ChatMode | undefined =
     body?.mode === "learn" || body?.mode === "help" ? body.mode : undefined;
+  const history = readHistory(body?.history);
 
   if (!raw) {
     return NextResponse.json({ error: "Ask a question first." }, { status: 400 });
@@ -139,6 +244,15 @@ export async function POST(request: Request) {
         kind: "verified_words",
         intent: "word_lookup",
         term,
+        prose: await sentenceAround({
+          supabase,
+          config,
+          mode: "learn",
+          locale,
+          question: raw,
+          history,
+          entries: result.data,
+        }),
         matchedOn: result.matchedOn ?? "partial",
         entries: result.data.slice(0, 8).map((e) => ({
           id: e.id,
@@ -159,14 +273,28 @@ export async function POST(request: Request) {
 
   const faq = await matchFaq(supabase, raw, locale);
   if (faq) {
+    // The stored answer is the fallback and the source of truth; the model, if
+    // it is on, rewords it to fit the question that was actually asked.
+    const worded = await sentenceAround({
+      supabase,
+      config,
+      mode: "help",
+      locale,
+      question: raw,
+      history,
+      faq: { question: faq.question, answer: faq.answer },
+    });
+
     return NextResponse.json({
       data: {
         kind: "help_answer",
         intent: "platform_help",
         question: faq.question,
-        answer: faq.answer,
+        answer: worded ?? faq.answer,
         translated: faq.translated,
-        faqId: faq.faq.id,
+        // The play button reads the stored answer, so it is only offered when
+        // that is what is on screen — never a model's rewording of it.
+        ...(worded ? { generated: true } : { faqId: faq.faq.id }),
       } satisfies ChatReply,
     });
   }
