@@ -1857,3 +1857,30 @@
 }
 
 .faq-alias__chip button:hover { color: #B3261E; }
+
+/* ===== ASSISTANT SETTINGS ===== */
+
+.cfg-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cfg-switch input:disabled + span { color: var(--admin-text-light, #6b7686); }
+
+/* The one setting whose consequence reaches outside this screen. */
+.cfg-warning {
+  margin: 0 0 var(--spacing-md, 16px);
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-accent, #E8A530);
+  background: #FDF6E7;
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6B4E12;
+}
+
+.cfg-warning a { color: inherit; }

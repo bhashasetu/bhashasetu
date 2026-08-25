@@ -13,6 +13,7 @@ const NAV = [
   { href: "/admin/homepage", label: "Homepage Content", icon: "home" },
   { href: "/admin/stories", label: "Stories & Voices", icon: "mic" },
   { href: "/admin/faqs", label: "Help & FAQ", icon: "chat" },
+  { href: "/admin/chat", label: "My BhashaSetu", icon: "chat" },
   { href: "/admin/pages", label: "Pages", icon: "tag" },
   { href: "/admin/media", label: "Media", icon: "image" },
 ] as const;

@@ -212,3 +212,39 @@ export const faqAliasInputSchema = z.object({
   locale: z.enum(faqLocaleValues),
   alias: z.string().trim().min(1).max(500),
 });
+
+// === CHAT CONFIGURATION ===
+
+/**
+ * Voices the assistant may speak with.
+ *
+ * Only 'priya' has been confirmed for this project. The list is here rather
+ * than as a database CHECK so adding one is a reviewed code change, not a
+ * free-text field an unverified name can be typed into.
+ */
+export const chatVoiceValues = ["priya"] as const;
+
+export const chatConfigInputSchema = z.object({
+  enabled: z.boolean(),
+  llm_enabled: z.boolean(),
+  /**
+   * Sarvam's model identifier. Shape-checked rather than allow-listed: the
+   * project has not been given the set of models this account can reach, so an
+   * allow-list here would be a guess presented as a rule. The Back Office says
+   * as much beside the field.
+   */
+  chat_model: z
+    .string()
+    .trim()
+    .max(100)
+    .regex(/^[a-zA-Z0-9._:-]*$/, "Model identifiers have no spaces")
+    .optional()
+    .nullable(),
+  tts_enabled: z.boolean(),
+  tts_voice: z.enum(chatVoiceValues),
+  asr_enabled: z.boolean(),
+  default_locale: z.enum(faqLocaleValues),
+  max_response_words: z.number().int().min(20).max(400),
+  rate_limit_per_session: z.number().int().min(1).max(1000),
+  rate_limit_per_day: z.number().int().min(1).max(100000),
+});
