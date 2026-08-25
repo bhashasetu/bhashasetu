@@ -1,51 +1,100 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import {
+  faqInLocale,
+  getPublishedFaqs,
+  groupByCategory,
+  isFaqLocale,
+} from "@/lib/faq/queries";
 
-export default function FAQPage() {
-  const faqs = [
-    {
-      q: "What languages does Bhasha Setu support?",
-      a: "Bhasha Setu currently supports Warli and Katkari languages, with plans to expand to additional indigenous languages.",
-    },
-    {
-      q: "Is the app free to use?",
-      a: "Yes, Bhasha Setu is completely free. We believe language learning and cultural preservation should be accessible to everyone.",
-    },
-    {
-      q: "Can I use Bhasha Setu on my mobile phone?",
-      a: "Yes! Bhasha Setu works on both web browsers and mobile devices. We also have an Android app available.",
-    },
-    {
-      q: "How can I contribute to the project?",
-      a: "We welcome contributions! You can help by sharing your knowledge of the language, recording pronunciations, or providing feedback.",
-    },
-    {
-      q: "Is my data private and secure?",
-      a: "Yes, we prioritize your privacy. Your learning data is stored securely and never shared with third parties.",
-    },
-  ];
+export const dynamic = "force-dynamic";
+
+/**
+ * Frequently asked questions.
+ *
+ * These used to be five entries hardcoded in this component, which meant an
+ * editor could not change an answer and the assistant had no approved help
+ * content to retrieve at all. Both now read the same published rows, so the
+ * page and My BhashaSetu cannot tell a visitor different things.
+ *
+ * ?lang=hi or ?lang=mr renders the same answers in that language, falling back
+ * to English for anything not yet written. A query parameter rather than
+ * client state so each language is a real, shareable, crawlable URL.
+ */
+export default async function FAQPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const supabase = await createClient();
+  const params = await searchParams;
+  const raw = params.lang;
+  const requested = Array.isArray(raw) ? raw[0] : raw;
+  const locale = isFaqLocale(requested) ? requested : "en";
+
+  const faqs = await getPublishedFaqs(supabase);
+  const groups = groupByCategory(faqs);
+
+  const langHref = (code: string) =>
+    code === "en" ? "/faq" : `/faq?lang=${code}`;
 
   return (
-    <main style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
-      <h1>Frequently Asked Questions</h1>
-      <p>Find answers to common questions about Bhasha Setu.</p>
+    <main className="faq-page">
+      <h1>Frequently asked questions</h1>
 
-      <section style={{ margin: "30px 0" }}>
-        {faqs.map((faq, idx) => (
-          <div key={idx} style={{ marginBottom: "20px" }}>
-            <h3 style={{ color: "#1f2937", marginBottom: "8px" }}>{faq.q}</h3>
-            <p style={{ color: "#4b5563", lineHeight: "1.6" }}>{faq.a}</p>
-          </div>
+      <nav className="faq-langs" aria-label="Language">
+        {[
+          ["en", "English"],
+          ["hi", "हिन्दी"],
+          ["mr", "मराठी"],
+        ].map(([code, label]) => (
+          <Link
+            key={code}
+            href={langHref(code)}
+            className={
+              locale === code ? "faq-langs__link is-current" : "faq-langs__link"
+            }
+            aria-current={locale === code ? "page" : undefined}
+          >
+            {label}
+          </Link>
         ))}
-      </section>
+      </nav>
 
-      <section style={{ margin: "30px 0", padding: "20px", backgroundColor: "#f0f8ff", borderRadius: "8px" }}>
-        <h2>Still have questions?</h2>
-        <p>
-          <Link href="/">Contact us</Link> or reach out through our social channels.
+      {groups.length === 0 ? (
+        <p className="faq-empty">
+          No questions have been published yet.
         </p>
-      </section>
+      ) : (
+        groups.map((group) => (
+          <section className="faq-group" key={group.category}>
+            <h2>{group.label}</h2>
+            <dl>
+              {group.faqs.map((faq) => {
+                const { question, answer, translated } = faqInLocale(faq, locale);
+                return (
+                  <div className="faq-item" key={faq.id} id={faq.slug}>
+                    <dt>{question}</dt>
+                    <dd>
+                      {answer}
+                      {!translated && (
+                        // Honest rather than silent: this answer has not been
+                        // written in the chosen language yet.
+                        <span className="faq-item__fallback">
+                          {" "}
+                          (English)
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </section>
+        ))
+      )}
 
-      <p>
+      <p className="faq-back">
         <Link href="/">← Home</Link>
       </p>
     </main>

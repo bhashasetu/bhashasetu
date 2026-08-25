@@ -165,3 +165,50 @@ export const statusTransitionSchema = z.object({
   status: z.enum(entryStatusValues),
   notes: z.string().trim().max(2000).optional(),
 });
+
+// === CHAT HELP CONTENT ===
+// The FAQ set the assistant retrieves from, and the /faq page renders.
+
+export const faqStatusValues = ["draft", "published", "archived"] as const;
+
+export const faqCategoryValues = [
+  "about",
+  "using",
+  "language",
+  "assistant",
+  "practical",
+] as const;
+
+/** The three languages the assistant answers in. */
+export const faqLocaleValues = ["en", "hi", "mr"] as const;
+
+/**
+ * English is required because it is the fallback every other locale falls back
+ * to; Hindi and Marathi may be filled in later, and the reader treats an empty
+ * one as "not translated yet" rather than showing a blank answer.
+ */
+export const faqInputSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens"),
+  category: z.enum(faqCategoryValues),
+  display_order: z.number().int().min(0).max(100000).optional(),
+  question_en: z.string().trim().min(1).max(500),
+  answer_en: z.string().trim().min(1).max(4000),
+  question_hi: z.string().trim().max(500).optional().nullable(),
+  answer_hi: z.string().trim().max(4000).optional().nullable(),
+  question_mr: z.string().trim().max(500).optional().nullable(),
+  answer_mr: z.string().trim().max(4000).optional().nullable(),
+});
+
+export const faqStatusTransitionSchema = z.object({
+  status: z.enum(faqStatusValues),
+});
+
+export const faqAliasInputSchema = z.object({
+  locale: z.enum(faqLocaleValues),
+  alias: z.string().trim().min(1).max(500),
+});

@@ -410,3 +410,86 @@ button {
   /* Keep the tab bar from covering the end of the page. */
   .public-main { padding-bottom: 68px; }
 }
+
+/* ===== FAQ PAGE =====
+   Reads the same published rows the assistant answers from. */
+
+.faq-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--spacing-lg) var(--spacing-md) var(--spacing-xl);
+}
+
+.faq-page h1 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-md);
+}
+
+.faq-langs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.faq-langs__link {
+  padding: 5px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-dark);
+  text-decoration: none;
+}
+
+.faq-langs__link.is-current {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-bg-white);
+}
+
+.faq-group { margin-bottom: var(--spacing-lg); }
+
+.faq-group h2 {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-sm);
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.faq-group dl { margin: 0; }
+
+.faq-item {
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.faq-item:last-child { border-bottom: 0; }
+
+.faq-item dt {
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 6px;
+}
+
+.faq-item dd {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text-dark);
+}
+
+.faq-item__fallback {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+.faq-empty,
+.faq-back {
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+}
