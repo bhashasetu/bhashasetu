@@ -1,41 +1,68 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { ChatPanel } from "@/components/public/ChatPanel";
+import { getPublicChatConfig } from "@/lib/chat/config";
+import { getPublishedFaqs } from "@/lib/faq/queries";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
+import "./chat.css";
 
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return buildPageMetadata({
+    slug: "chat",
+    fallback: {
+      title: "My BhashaSetu",
+      description:
+        "Ask about Warli and Katkari words, and about using Bhasha Setu. Answers come from verified community content.",
+    },
+  });
+}
+
+/**
+ * My BhashaSetu, per MOBILE-04-MyBhashaSetu.PNG.
+ *
+ * The chat column only. WEB-05's flanking panels — Saved Words, Learning
+ * Journeys, Badges, Your Progress — need public user accounts, which this
+ * project does not have; building them would mean inventing an account system
+ * nobody asked for. Recorded as a deliberate deviation rather than left looking
+ * like an oversight.
+ */
 export default async function ChatPage() {
   const supabase = await createClient();
 
-  const { data: chatPage } = await supabase
-    .from("pages")
-    .select(
-      `
-      *,
-      page_sections(
-        *,
-        page_content(*)
-      )
-      `
-    )
-    .eq("slug", "chat")
-    .eq("status", "published")
-    .single();
+  const [config, faqs, { data: page }] = await Promise.all([
+    getPublicChatConfig(supabase),
+    getPublishedFaqs(supabase),
+    supabase
+      .from("pages")
+      .select("title, description")
+      .eq("slug", "chat")
+      .eq("status", "published")
+      .maybeSingle(),
+  ]);
 
-  // Fallback page structure
-  const title = chatPage?.title || "My BhashaSetu";
-  const description = chatPage?.description || "Your personal learning companion for exploring Warli and Katkari languages";
+  // Starting points, taken from real published questions rather than written
+  // into the component — so they change when an editor changes the FAQ.
+  const suggestions = faqs.slice(0, 3).map((f) => f.question_en);
 
   return (
-    <main>
-      <h1>{title}</h1>
-      <p>{description}</p>
+    <main className="chat-page">
+      <header className="chat-page__head">
+        <h1>{page?.title || "My BhashaSetu"}</h1>
+        <p>
+          {page?.description ||
+            "Ask about a Warli or Katkari word, or about using Bhasha Setu."}
+        </p>
+      </header>
 
-      {/* Chat Interface Section */}
-      <section style={{ minHeight: "500px", border: "1px solid #ccc", padding: "20px", borderRadius: "8px" }}>
-        <h2>Chat Assistant</h2>
-        <p style={{ color: "#666" }}>Chat interface coming soon.</p>
-        <p>Ask questions about Warli and Katkari languages, explore stories, and learn from your personal learning companion.</p>
-      </section>
+      <ChatPanel
+        enabled={config.enabled}
+        defaultLocale={config.defaultLocale}
+        suggestions={suggestions}
+      />
 
-      <p>
+      <p className="chat-page__back">
         <Link href="/">← Home</Link>
       </p>
     </main>

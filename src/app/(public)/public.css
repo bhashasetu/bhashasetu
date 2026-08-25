@@ -493,3 +493,19 @@ button {
   color: var(--color-text-light);
   font-size: var(--font-size-sm);
 }
+
+/* Labels that belong to assistive technology only.
+   Defined here rather than in one page's stylesheet: it was in stories.css,
+   which loads on /stories alone, so the same class elsewhere did nothing and
+   the labels rendered as visible text. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
