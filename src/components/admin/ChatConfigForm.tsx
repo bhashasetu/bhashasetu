@@ -3,13 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { chatVoiceValues, faqLocaleValues } from "@/lib/validation/schemas";
+import {
+  chatModelValues,
+  chatVoiceValues,
+  faqLocaleValues,
+} from "@/lib/validation/schemas";
 import type { ChatConfig } from "@/lib/chat/config";
 
 const LOCALE_LABELS: Record<string, string> = {
   en: "English",
   hi: "हिन्दी — Hindi",
   mr: "मराठी — Marathi",
+};
+
+const MODEL_LABELS: Record<string, string> = {
+  "sarvam-105b": "sarvam-105b — general purpose",
+  "sarvam-105b-conversations": "sarvam-105b-conversations — real-time dialogue",
 };
 
 /**
@@ -39,6 +48,9 @@ export function ChatConfigForm({
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [test, setTest] = useState<
+    { ok: boolean; text: string } | "running" | null
+  >(null);
 
   function set<K extends keyof ChatConfig>(key: K, value: ChatConfig[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -79,6 +91,43 @@ export function ChatConfigForm({
       setError(err instanceof Error ? err.message : "Could not save");
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * One real call to Sarvam, showing whatever comes back.
+   *
+   * Whether this account can reach the chosen model is not something the code
+   * can know, so it is asked rather than assumed — and the provider's own error
+   * is more useful to whoever is reading this screen than any paraphrase.
+   */
+  async function testConnection() {
+    setTest("running");
+    try {
+      const res = await fetch("/api/admin/chat-config/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: values.chat_model ?? "" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTest({ ok: false, text: body.error ?? `Failed (${res.status})` });
+        return;
+      }
+      const d = body.data;
+      setTest(
+        d.ok
+          ? { ok: true, text: `Replied in ${d.ms} ms: ${d.reply}` }
+          : {
+              ok: false,
+              text: `${d.status ?? "No response"} — ${d.detail}`,
+            }
+      );
+    } catch (err) {
+      setTest({
+        ok: false,
+        text: err instanceof Error ? err.message : "Test failed",
+      });
     }
   }
 
@@ -237,17 +286,48 @@ export function ChatConfigForm({
               Model
             </label>
             <div className="hp-row__control">
-              <input
+              <select
                 id="cfg-model"
-                type="text"
                 value={values.chat_model ?? ""}
-                onChange={(e) => set("chat_model", e.target.value)}
-                placeholder="sarvam-model-identifier"
-              />
+                onChange={(e) => set("chat_model", e.target.value || null)}
+              >
+                <option value="">None chosen</option>
+                {chatModelValues.map((m) => (
+                  <option key={m} value={m}>
+                    {MODEL_LABELS[m] ?? m}
+                  </option>
+                ))}
+              </select>
               <p className="hp-row__hint">
-                Must match a model your Sarvam account can reach. This is not
-                checked against a list — the project has not been given one, and
-                a guessed list would be worse than none.
+                Both are served on different Sarvam endpoints, which this build
+                knows; a model outside this list has nowhere to be sent. Your
+                account still has to have access to the one you pick — Test
+                connection is how you find out.
+              </p>
+              <div className="cfg-test">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--ghost"
+                  onClick={testConnection}
+                  disabled={!sarvamConfigured || test === "running"}
+                >
+                  {test === "running" ? "Testing…" : "Test connection"}
+                </button>
+                {test && test !== "running" && (
+                  <span
+                    className={
+                      test.ok
+                        ? "cfg-test__result cfg-test__result--ok"
+                        : "cfg-test__result cfg-test__result--error"
+                    }
+                  >
+                    {test.text}
+                  </span>
+                )}
+              </div>
+              <p className="hp-row__hint">
+                One real question, billed like any other. It shows the model&apos;s
+                reply, or the provider&apos;s own error verbatim.
               </p>
             </div>
           </div>

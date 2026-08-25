@@ -250,3 +250,30 @@
   .chat-bubble { max-width: 94%; }
   .chat-thread { max-height: none; }
 }
+
+.chat-bubble__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: 6px;
+}
+
+.chat-bubble__foot .chat-card__source {
+  padding: 0;
+  background: none;
+}
+
+.chat-speak {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-white);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-speak:hover { border-color: var(--color-accent); }

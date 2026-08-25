@@ -60,6 +60,7 @@ export default async function ChatPage() {
         enabled={config.enabled}
         defaultLocale={config.defaultLocale}
         suggestions={suggestions}
+        canSpeak={config.ttsEnabled}
       />
 
       <p className="chat-page__back">

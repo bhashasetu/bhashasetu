@@ -222,6 +222,70 @@ function AudioButton({
 }
 
 /**
+ * Reads an approved answer aloud.
+ *
+ * Sends the FAQ's id, never the text: the speak route looks the answer up
+ * itself, so nothing a visitor typed and no Warli or Katkari word can ever be
+ * handed to a synthetic voice. Only help answers get this control at all —
+ * word cards carry the human recording instead.
+ */
+function SpeakButton({ faqId, locale }: { faqId: string; locale: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "playing" | "failed">(
+    "idle"
+  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  async function play() {
+    if (state === "playing") {
+      audioRef.current?.pause();
+      setState("idle");
+      return;
+    }
+    setState("loading");
+    try {
+      const res = await fetch("/api/public/chat/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ faq_id: faqId, locale }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.data?.audio) {
+        setState("failed");
+        return;
+      }
+      const audio = new Audio(`data:audio/wav;base64,${body.data.audio}`);
+      audio.addEventListener("ended", () => setState("idle"));
+      audio.addEventListener("error", () => setState("failed"));
+      audioRef.current = audio;
+      await audio.play();
+      setState("playing");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  if (state === "failed") return null;
+
+  return (
+    <button
+      type="button"
+      className="chat-speak"
+      onClick={play}
+      aria-label="Read this answer aloud"
+    >
+      <span aria-hidden="true">{state === "playing" ? "❚❚" : "🔊"}</span>
+    </button>
+  );
+}
+
+/**
  * My BhashaSetu.
  *
  * Deliberately hand-rolled rather than built on a chat SDK: most of what this
@@ -232,11 +296,14 @@ export function ChatPanel({
   enabled,
   defaultLocale,
   suggestions,
+  canSpeak,
 }: {
   enabled: boolean;
   defaultLocale: string;
   /** Published questions, offered as starting points. */
   suggestions: string[];
+  /** Whether spoken answers are switched on in the Back Office. */
+  canSpeak: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -360,11 +427,23 @@ export function ChatPanel({
             return (
               <div className="chat-bubble chat-bubble--assistant" key={m.id}>
                 <p>{reply.answer}</p>
-                {!reply.translated && (
-                  <p className="chat-card__source">
-                    This answer has not been written in your language yet.
-                  </p>
-                )}
+                <div className="chat-bubble__foot">
+                  {canSpeak && reply.faqId && (
+                    <SpeakButton faqId={reply.faqId} locale={locale} />
+                  )}
+                  {!reply.translated && (
+                    <span className="chat-card__source">
+                      Not written in your language yet.
+                    </span>
+                  )}
+                  {reply.generated && (
+                    // Said plainly: this sentence was assembled by a model from
+                    // published answers, rather than being one of them.
+                    <span className="chat-card__source">
+                      Written from Bhasha Setu&apos;s published answers.
+                    </span>
+                  )}
+                </div>
               </div>
             );
           }

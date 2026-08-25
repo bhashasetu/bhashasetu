@@ -1884,3 +1884,20 @@
 }
 
 .cfg-warning a { color: inherit; }
+
+.cfg-test {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.cfg-test__result {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-word;
+}
+
+.cfg-test__result--ok { color: #2D7D4A; }
+.cfg-test__result--error { color: #B3261E; }

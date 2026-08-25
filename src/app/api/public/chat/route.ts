@@ -3,18 +3,25 @@ import { createClient } from "@/lib/supabase/server";
 import { routeIntent } from "@/lib/chat/intent";
 import { matchFaq, recordUnanswered } from "@/lib/chat/faq-match";
 import { getPublicChatConfig } from "@/lib/chat/config";
+import { answerFromFaqs } from "@/lib/chat/sarvam";
+import { getPublishedFaqs, faqInLocale } from "@/lib/faq/queries";
 import { isFaqLocale, type FaqLocale } from "@/lib/faq/queries";
 import { pronunciationAudioIds, searchEntries } from "@/lib/entries/search";
 
 /**
  * My BhashaSetu.
  *
- * Every answer this returns comes out of the database. There is no model call
- * anywhere in this file — not for classifying, not for answering, not for
- * phrasing. That is the point: the "Uses verified content only" badge both
- * approved designs print on the assistant is only honest if inventing a Warli
- * word is impossible rather than merely discouraged, and the way to make it
- * impossible is for the language route to terminate in a query.
+ * Every Warli and Katkari answer comes out of the database, and no model is
+ * consulted about one at any point — not to classify the question, not to
+ * answer it, not to phrase it. That is what makes the "Uses verified content
+ * only" badge both approved designs print here honest: inventing a word is
+ * impossible rather than discouraged, because the language route terminates in
+ * a query several steps before a provider is reachable.
+ *
+ * A model is used in exactly one place: a help question that the published
+ * FAQs do not match exactly, when an editor has switched it on. It is handed
+ * those same published answers and told to work from them alone, so the most
+ * it can do is recognise a rewording of something already answered.
  *
  * The response is a typed card, not prose, because most of what the assistant
  * says is a database record — a word with its meanings and its recording — and
@@ -43,6 +50,10 @@ export type ChatReply =
       question: string;
       answer: string;
       translated: boolean;
+      /** Present when this answer can be read aloud; absent for generated prose. */
+      faqId?: string;
+      /** True when a model rephrased approved content rather than quoting it. */
+      generated?: boolean;
     }
   | {
       kind: "no_result";
@@ -133,15 +144,60 @@ export async function POST(request: Request) {
         question: faq.question,
         answer: faq.answer,
         translated: faq.translated,
+        faqId: faq.faq.id,
       } satisfies ChatReply,
     });
   }
 
-  // Nothing matched. This is where the model would go once it is switched on —
-  // grounded in the published FAQs and permitted to rephrase them, never to
-  // answer from its own knowledge. Until then the honest miss is the answer,
-  // and the question goes to the unanswered list for an editor to act on.
+  // Nothing matched exactly. The model gets one chance, and only here: it is
+  // given the published answers and told to work from those alone, so the most
+  // it can do is recognise that a differently-worded question is one we have
+  // already answered. It is never asked about Warli or Katkari — that route
+  // ended in the database long before this line.
+  //
+  // The question is recorded either way. A model answer is a stopgap; the fix
+  // is an editor adding the phrasing as an alias, and that only happens if the
+  // miss is visible.
   await recordUnanswered(supabase, raw, locale);
+
+  const model = config.chatModel?.trim();
+
+  if (config.llmEnabled && model) {
+    const { data: allowed } = await supabase.rpc("chat_claim_call", { kind: "llm" });
+
+    if (allowed === true) {
+      const published = await getPublishedFaqs(supabase);
+      const grounding = published.map((f) => {
+        const { question, answer } = faqInLocale(f, locale);
+        return { question, answer };
+      });
+
+      const result = await answerFromFaqs({
+        model,
+        question: raw,
+        locale,
+        maxWords: config.maxResponseWords,
+        faqs: grounding,
+      });
+
+      if (result.ok) {
+        return NextResponse.json({
+          data: {
+            kind: "help_answer",
+            intent: "platform_help",
+            question: raw,
+            answer: result.value,
+            translated: true,
+            generated: true,
+          } satisfies ChatReply,
+        });
+      }
+      // A provider that is down, slow, misconfigured, or that honestly said it
+      // could not answer, all land here — and all fall through to the same
+      // honest miss below. The assistant never fails because Sarvam did.
+    }
+  }
+
   return NextResponse.json({
     data: { kind: "no_result", intent: "platform_help" } satisfies ChatReply,
   });

@@ -66,13 +66,18 @@ export async function getChatConfig(
  * Public-side read: only what a visitor's request depends on.
  *
  * There is no public SELECT policy on chat_config, so this goes through the
- * chat_public_config() function, which returns three fields and not the rate
- * limits or the model name.
+ * chat_public_config() function. It returns what a request has to know to be
+ * answered, and deliberately not the rate limits — a spend ceiling is the one
+ * setting here worth withholding.
  */
 export async function getPublicChatConfig(supabase: SupabaseClient): Promise<{
   enabled: boolean;
   ttsEnabled: boolean;
   defaultLocale: string;
+  llmEnabled: boolean;
+  chatModel: string | null;
+  maxResponseWords: number;
+  ttsVoice: string;
 }> {
   const { data } = await supabase.rpc("chat_public_config");
   const row = Array.isArray(data) ? data[0] : data;
@@ -81,6 +86,10 @@ export async function getPublicChatConfig(supabase: SupabaseClient): Promise<{
     enabled: row?.enabled === true,
     ttsEnabled: row?.tts_enabled === true,
     defaultLocale: row?.default_locale ?? "en",
+    llmEnabled: row?.llm_enabled === true,
+    chatModel: row?.chat_model ?? null,
+    maxResponseWords: row?.max_response_words ?? CHAT_CONFIG_DEFAULTS.max_response_words,
+    ttsVoice: row?.tts_voice ?? CHAT_CONFIG_DEFAULTS.tts_voice,
   };
 }
 

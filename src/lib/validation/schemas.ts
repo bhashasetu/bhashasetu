@@ -216,28 +216,45 @@ export const faqAliasInputSchema = z.object({
 // === CHAT CONFIGURATION ===
 
 /**
- * Voices the assistant may speak with.
+ * Bulbul v3's speakers, as published by Sarvam.
  *
- * Only 'priya' has been confirmed for this project. The list is here rather
- * than as a database CHECK so adding one is a reviewed code change, not a
- * free-text field an unverified name can be typed into.
+ * The list is here rather than as a database CHECK so that following Sarvam's
+ * catalogue is a reviewed code change, not a free-text field an unverified name
+ * can be typed into — a wrong name is a 4xx at the moment a visitor presses
+ * play, which is the worst possible time to find out.
+ *
+ * Order follows Sarvam's own documentation rather than being alphabetised, so
+ * the two lists can be compared line by line when the catalogue changes.
  */
-export const chatVoiceValues = ["priya"] as const;
+export const chatVoiceValues = [
+  "shubh", "aditya", "ritu", "priya", "neha", "rahul", "pooja", "rohan",
+  "simran", "kavya", "amit", "dev", "ishita", "shreya", "ratan", "varun",
+  "manan", "sumit", "roopa", "kabir", "aayan", "ashutosh", "advait", "anand",
+  "tanya", "tarun", "sunny", "mani", "gokul", "vijay", "shruti", "suhani",
+  "mohit", "kavitha", "rehan", "soham", "rupali",
+] as const;
+
+/**
+ * Chat models this build knows how to reach.
+ *
+ * Each one is served on its own path — see lib/chat/sarvam.ts — so this is not
+ * only a validation list: a model absent from it has no endpoint to be sent to.
+ * sarvam-m and sarvam-30b are deprecated and deliberately excluded.
+ */
+export const chatModelValues = [
+  "sarvam-105b",
+  "sarvam-105b-conversations",
+] as const;
 
 export const chatConfigInputSchema = z.object({
   enabled: z.boolean(),
   llm_enabled: z.boolean(),
   /**
-   * Sarvam's model identifier. Shape-checked rather than allow-listed: the
-   * project has not been given the set of models this account can reach, so an
-   * allow-list here would be a guess presented as a rule. The Back Office says
-   * as much beside the field.
+   * Sarvam's model identifier. The empty string is the honest "none chosen"
+   * value the form sends; the PUT handler stores it as NULL.
    */
   chat_model: z
-    .string()
-    .trim()
-    .max(100)
-    .regex(/^[a-zA-Z0-9._:-]*$/, "Model identifiers have no spaces")
+    .union([z.enum(chatModelValues), z.literal("")])
     .optional()
     .nullable(),
   tts_enabled: z.boolean(),
