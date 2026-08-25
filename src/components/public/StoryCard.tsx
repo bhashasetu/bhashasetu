@@ -1,21 +1,26 @@
-import { SlotMedia } from "./SlotMedia";
+import { StoryPlayer } from "./StoryPlayer";
 import { formatDuration, type StoryRow } from "@/lib/stories/queries";
 
 /**
- * One interview card: thumbnail with a play affordance and a duration badge,
- * then title, speaker line, summary and the language tag.
+ * One interview card: the recording behind a still with a play control, then
+ * title, speaker line, summary and the language tag.
  *
- * The play control is a link to the story's own page rather than an inline
- * player — the approved design shows a still with a play symbol, and the
- * cards sit in a scrolling rail where several simultaneous players would be
- * hostile.
+ * The still and the play button live in StoryPlayer, which swaps in the real
+ * media on press. Nothing loads until then, so a rail of cards costs a row of
+ * images rather than a row of video streams.
  */
 export function StoryCard({
   story,
   thumbnailUrl,
+  mediaUrl,
+  mediaSourceUrl,
 }: {
   story: StoryRow;
   thumbnailUrl: string | null;
+  /** Signed URL for a recording we host. */
+  mediaUrl: string | null;
+  /** Address of a hosted video (YouTube/Vimeo). */
+  mediaSourceUrl: string | null;
 }) {
   const duration = formatDuration(story.duration_seconds);
   const speakerLine = [story.speaker_name, story.speaker_role, story.speaker_place]
@@ -24,22 +29,19 @@ export function StoryCard({
 
   return (
     <article className="story-card">
-      <div className="story-card__media">
-        <SlotMedia
-          url={thumbnailUrl}
-          altText={
-            story.speaker_name
-              ? `${story.title} — ${story.speaker_name}`
-              : story.title
-          }
-          aspectRatio="16:9"
-          label="Interview"
-        />
-        <span className="story-card__play" aria-hidden="true">
-          ▶
-        </span>
-        {duration && <span className="story-card__duration">{duration}</span>}
-      </div>
+      <StoryPlayer
+        url={mediaUrl}
+        sourceUrl={mediaSourceUrl}
+        posterUrl={thumbnailUrl}
+        title={
+          story.speaker_name
+            ? `${story.title} — ${story.speaker_name}`
+            : story.title
+        }
+        aspectRatio="16:9"
+        label="Interview"
+        duration={duration}
+      />
 
       <div className="story-card__body">
         <h3 className="story-card__title">{story.title}</h3>

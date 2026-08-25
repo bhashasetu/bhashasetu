@@ -1,5 +1,7 @@
 import { SlotMedia } from "./SlotMedia";
+import { AudioClipPlayer } from "./StoryPlayer";
 import { formatDuration, type StoryRow } from "@/lib/stories/queries";
+import { parseVideoUrl } from "@/lib/media/video-embed";
 
 /**
  * A decorative waveform.
@@ -37,11 +39,18 @@ export function AudioStoryCard({
   story,
   thumbnailUrl,
   audioUrl,
+  audioSourceUrl,
 }: {
   story: StoryRow;
   thumbnailUrl: string | null;
+  /** Signed URL for a file we host. */
   audioUrl: string | null;
+  /** A song or clip published as a hosted video (YouTube/Vimeo). */
+  audioSourceUrl: string | null;
 }) {
+  // A clip attached as a YouTube link is still a video; an <audio> element
+  // cannot play one, so it gets the embed instead.
+  const embed = audioSourceUrl ? parseVideoUrl(audioSourceUrl) : null;
   const duration = formatDuration(story.duration_seconds);
 
   return (
@@ -72,7 +81,9 @@ export function AudioStoryCard({
           labelled out of the box, which a styled <span> is not, and audio
           controls have to be accessible (CLAUDE.md section 28). It sits on
           its own row so four cards across never crush it. */}
-      {audioUrl ? (
+      {embed && audioSourceUrl ? (
+        <AudioClipPlayer sourceUrl={audioSourceUrl} title={story.title} />
+      ) : audioUrl ? (
         <audio
           className="audio-card__player"
           controls

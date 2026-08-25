@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SlotMedia } from "@/components/public/SlotMedia";
 import { StoryCard } from "@/components/public/StoryCard";
+import { FeaturedStoryPanel } from "@/components/public/FeaturedStoryPanel";
 import { AudioStoryCard } from "@/components/public/AudioStoryCard";
 import { StoryFilters } from "@/components/public/StoryFilters";
 import { renderAccented } from "@/lib/content/accent";
@@ -125,15 +126,21 @@ export default async function StoriesPage({
     ),
   ]);
 
+  // Every card needs its recording as well as its still. Only the thumbnails
+  // were resolved here, so interviews and the featured story had no media to
+  // play however it had been attached in the Back Office.
   const assetUrls = await resolveStoryAssetUrls(supabase, [
-    ...interviews.map((s) => s.thumbnail_asset_id),
+    ...interviews.flatMap((s) => [s.thumbnail_asset_id, s.media_asset_id]),
     ...audioClips.flatMap((s) => [s.thumbnail_asset_id, s.media_asset_id]),
     featured?.thumbnail_asset_id ?? null,
+    featured?.media_asset_id ?? null,
   ]);
 
   const slotMedia = (slot?: { id: string }) =>
     slot ? slotUrls.get(slot.id) ?? null : null;
-  const assetUrl = (id: string | null) => (id ? assetUrls.get(id) ?? null : null);
+  const asset = (id: string | null) => (id ? assetUrls.get(id) ?? null : null);
+  /** Poster images are always stored files, never hosted video. */
+  const assetUrl = (id: string | null) => asset(id)?.url ?? null;
 
   // Two of the four hero figures are counts we can derive and therefore
   // guarantee; the other two are editorial. Anything blank or zero is
@@ -278,6 +285,8 @@ export default async function StoriesPage({
                   key={story.id}
                   story={story}
                   thumbnailUrl={assetUrl(story.thumbnail_asset_id)}
+                  mediaUrl={asset(story.media_asset_id)?.url ?? null}
+                  mediaSourceUrl={asset(story.media_asset_id)?.sourceUrl ?? null}
                 />
               ))}
             </div>
@@ -319,7 +328,10 @@ export default async function StoriesPage({
                       key={story.id}
                       story={story}
                       thumbnailUrl={assetUrl(story.thumbnail_asset_id)}
-                      audioUrl={assetUrl(story.media_asset_id)}
+                      audioUrl={asset(story.media_asset_id)?.url ?? null}
+                      audioSourceUrl={
+                        asset(story.media_asset_id)?.sourceUrl ?? null
+                      }
                     />
                   ))}
                 </div>
@@ -334,37 +346,16 @@ export default async function StoriesPage({
           )}
 
           {featuredSection && featured && (
-            <aside className="sv-featured">
-              <SlotMedia
-                url={assetUrl(featured.thumbnail_asset_id)}
-                altText={featured.title}
-                aspectRatio="3:4"
-                label="Featured story"
-                className="sv-featured__image"
-              />
-              <div className="sv-featured__content">
-                <span className="sv-featured__badge">
-                  <span aria-hidden="true">★</span>{" "}
-                  {findContent(featuredSection, "label")}
-                </span>
-                <h2 className="sv-featured__title">{featured.title}</h2>
-                {featured.summary && (
-                  <p className="sv-featured__text">{featured.summary}</p>
-                )}
-                <Link
-                  href={`/stories?story=${featured.slug}`}
-                  className="sv-featured__cta"
-                >
-                  {findContent(featuredSection, "cta_text")}{" "}
-                  <span aria-hidden="true">›</span>
-                </Link>
-              </div>
-              {formatDuration(featured.duration_seconds) && (
-                <span className="sv-featured__duration">
-                  {formatDuration(featured.duration_seconds)}
-                </span>
-              )}
-            </aside>
+            <FeaturedStoryPanel
+              title={featured.title}
+              summary={featured.summary}
+              badge={findContent(featuredSection, "label")}
+              ctaText={findContent(featuredSection, "cta_text")}
+              posterUrl={assetUrl(featured.thumbnail_asset_id)}
+              mediaUrl={asset(featured.media_asset_id)?.url ?? null}
+              mediaSourceUrl={asset(featured.media_asset_id)?.sourceUrl ?? null}
+              duration={formatDuration(featured.duration_seconds)}
+            />
           )}
         </section>
       )}

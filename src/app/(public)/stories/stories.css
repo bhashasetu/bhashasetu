@@ -1031,3 +1031,94 @@
     scroll-snap-type: none;
   }
 }
+
+/* ------------------------------------------------------------
+   PLAYABLE STORY MEDIA
+   The play circle was a decorative <span> over a still; it is a
+   real control now, and needs the affordances of one.
+   ------------------------------------------------------------ */
+.story-card__play--button {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.story-card__play--button:hover {
+  background: #fff;
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.story-card__play--button:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* A story whose recording is not attached yet: shown, but not offered. */
+.story-card__play--pending {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* An embed fills the frame it replaces, so the rail keeps its rhythm. */
+.story-card__media iframe {
+  border: 0;
+}
+
+.audio-card__embed {
+  margin-top: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Stands in for the native player on a clip published as a hosted video, and
+   keeps the same footprint so the two kinds of card line up in one rail. */
+button.audio-card__player--embed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+button.audio-card__player--embed:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Featured story, once playing: the panel becomes the player. */
+.sv-featured--playing {
+  display: block;
+  padding: 0;
+  background: #000;
+}
+
+.sv-featured--playing .media-slot {
+  position: relative;
+  inset: auto;
+  height: auto;
+}
+
+.sv-featured__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  background: #000;
+}
+
+/* The CTA is a button now rather than a link. */
+button.sv-featured__cta {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}

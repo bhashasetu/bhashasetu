@@ -222,25 +222,41 @@ export async function getStoryCounts(supabase: SupabaseClient): Promise<{
   };
 }
 
-/** Resolve signed URLs for a batch of story media assets in one pass. */
+export type ResolvedStoryMedia = {
+  /** Signed URL for a stored file, null for a hosted video. */
+  url: string | null;
+  /** Address of a hosted video (YouTube/Vimeo), null for a stored file. */
+  sourceUrl: string | null;
+};
+
+/**
+ * Resolve a batch of story media assets in one pass.
+ *
+ * This selected only storage_bucket and storage_path, so an asset that is a
+ * hosted video — no stored object, just a URL — resolved to nothing at all.
+ * Every YouTube link attached in the Back Office therefore came back empty,
+ * and the card had no media to play.
+ */
 export async function resolveStoryAssetUrls(
   supabase: SupabaseClient,
   assetIds: (string | null)[]
-): Promise<Map<string, string>> {
-  const resolved = new Map<string, string>();
+): Promise<Map<string, ResolvedStoryMedia>> {
+  const resolved = new Map<string, ResolvedStoryMedia>();
   const ids = [...new Set(assetIds.filter((id): id is string => !!id))];
   if (ids.length === 0) return resolved;
 
   const { data: assets } = await supabase
     .from("media_assets")
-    .select("id, storage_bucket, storage_path")
+    .select("id, storage_bucket, storage_path, source_type, source_url")
     .in("id", ids)
     .eq("status", "published");
 
   if (!assets?.length) return resolved;
 
+  // A hosted video has no object to sign and is skipped here.
   const pathsByBucket = new Map<string, string[]>();
   for (const asset of assets) {
+    if (!asset.storage_bucket || !asset.storage_path) continue;
     const paths = pathsByBucket.get(asset.storage_bucket) ?? [];
     paths.push(asset.storage_path);
     pathsByBucket.set(asset.storage_bucket, paths);
@@ -261,8 +277,12 @@ export async function resolveStoryAssetUrls(
   );
 
   for (const asset of assets) {
+    if (asset.source_type === "external" && asset.source_url) {
+      resolved.set(asset.id, { url: null, sourceUrl: asset.source_url });
+      continue;
+    }
     const url = signed.get(`${asset.storage_bucket}:${asset.storage_path}`);
-    if (url) resolved.set(asset.id, url);
+    if (url) resolved.set(asset.id, { url, sourceUrl: null });
   }
 
   return resolved;
