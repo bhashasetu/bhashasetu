@@ -133,22 +133,35 @@ async function idsMatchingAlias(
   return [...new Set((data ?? []).map((r) => r.learning_entry_id as string))];
 }
 
-/** Entry ids that have a published pronunciation recording linked. */
-export async function idsWithAudio(supabase: SupabaseClient): Promise<Set<string>> {
+/**
+ * Entry id -> the published pronunciation asset linked to it.
+ *
+ * This returned only a set of ids, which was enough to show whether a
+ * recording existed but not enough to play one — so the list's play control
+ * had nothing to point at. The asset id comes back with it now.
+ */
+export async function audioAssetByEntry(
+  supabase: SupabaseClient
+): Promise<Map<string, string>> {
   const { data } = await supabase
     .from("media_links")
-    .select("linked_entry_id, media_assets!inner(status)")
+    .select("linked_entry_id, media_asset_id, media_assets!inner(status)")
     .eq("linked_entry_type", "learning_entry")
     .eq("link_type", PRONUNCIATION_LINK_TYPE)
     .eq("media_assets.status", "published");
 
-  return new Set((data ?? []).map((r) => r.linked_entry_id as string));
+  const byEntry = new Map<string, string>();
+  for (const row of data ?? []) {
+    byEntry.set(row.linked_entry_id as string, row.media_asset_id as string);
+  }
+  return byEntry;
 }
 
 export type EntryPage = {
   rows: EntryRow[];
   total: number;
-  withAudio: Set<string>;
+  /** Entry id -> playable asset id. */
+  withAudio: Map<string, string>;
 };
 
 /** One page of entries for the management list. */
@@ -156,7 +169,7 @@ export async function getEntries(
   supabase: SupabaseClient,
   filters: EntryFilters
 ): Promise<EntryPage> {
-  const withAudio = await idsWithAudio(supabase);
+  const withAudio = await audioAssetByEntry(supabase);
 
   let query = supabase
     .from("learning_entries")
@@ -183,11 +196,11 @@ export async function getEntries(
   // Audio presence is a property of media_links, not of the entry row, so it
   // is applied against the id set rather than as a column filter.
   if (filters.audio === "with") {
-    const ids = [...withAudio];
+    const ids = [...withAudio.keys()];
     if (ids.length === 0) return { rows: [], total: 0, withAudio };
     query = query.in("id", ids);
   } else if (filters.audio === "without") {
-    const ids = [...withAudio];
+    const ids = [...withAudio.keys()];
     if (ids.length > 0) query = query.not("id", "in", `(${ids.join(",")})`);
   }
 
@@ -243,7 +256,7 @@ export async function getEntryCounts(
       .from("learning_entries")
       .select("id")
       .in("status", ["verified", "published"]),
-    idsWithAudio(supabase),
+    audioAssetByEntry(supabase),
   ]);
 
   const missingAudio = (needAudio.data ?? []).filter(

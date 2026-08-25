@@ -7,6 +7,7 @@ import {
   type EntryTab,
 } from "@/components/admin/EntryDetailPanel";
 import { EntryRowActions } from "@/components/admin/EntryRowActions";
+import { EntryAudioButton } from "@/components/admin/EntryAudioButton";
 import { AdminIcon } from "@/components/admin/AdminShell";
 import {
   getEntries,
@@ -236,7 +237,7 @@ export default async function WordsAndPhrasesPage({
                 </thead>
                 <tbody>
                   {page.rows.map((entry) => {
-                    const hasAudio = page.withAudio.has(entry.id);
+                    const audioAssetId = page.withAudio.get(entry.id) ?? null;
                     const actor = actors[entry.updated_by ?? entry.created_by ?? ""];
                     return (
                       <tr key={entry.id}>
@@ -260,10 +261,11 @@ export default async function WordsAndPhrasesPage({
                         <td>{entry.english_meaning}</td>
                         <td>{entry.hindi_meaning ?? "—"}</td>
                         <td>
-                          {hasAudio ? (
-                            <span className="wp-audio-dot" title="Recording attached">
-                              ▶
-                            </span>
+                          {audioAssetId ? (
+                            <EntryAudioButton
+                              assetId={audioAssetId}
+                              label={entry.native_text}
+                            />
                           ) : (
                             <span
                               className="wp-audio-dot wp-audio-dot--missing"
@@ -280,7 +282,7 @@ export default async function WordsAndPhrasesPage({
                           {/* Missing audio is orthogonal to the workflow
                               state, so it is a separate indicator rather
                               than a sixth status (brief section 10). */}
-                          {!hasAudio &&
+                          {!audioAssetId &&
                             ["verified", "published"].includes(entry.status) && (
                               <span className="wp-flag">Missing audio</span>
                             )}
