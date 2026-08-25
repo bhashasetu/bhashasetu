@@ -224,6 +224,10 @@
   padding: 10px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
+  /* Stated rather than inherited from the browser, which paints its own idea
+     of a text box when the visitor's system is set to dark. */
+  background: var(--color-bg-white);
+  color: var(--color-text-dark);
   font-family: inherit;
   font-size: var(--font-size-sm);
 }

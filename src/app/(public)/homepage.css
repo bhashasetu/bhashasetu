@@ -414,8 +414,13 @@
   color: var(--color-text-light);
 }
 
-/* ===== MEET MY BHASHASETU PANEL ===== */
-.chat-panel {
+/* ===== MEET MY BHASHASETU PANEL =====
+   Named home-* rather than .chat-panel because it is not the chat panel: it is
+   the homepage card that invites you to it. Both files load together on every
+   public page in a production build — the route group shares one stylesheet —
+   so the shorter name silently turned the real /chat panel into this card's
+   two-column grid. */
+.home-chat-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px;
   column-gap: var(--spacing-sm);
@@ -610,7 +615,7 @@
   }
 
   /* Give the copy the full width; the robot sits under it. */
-  .chat-panel {
+  .home-chat-panel {
     grid-template-columns: minmax(0, 1fr);
     row-gap: var(--spacing-sm);
     justify-items: start;

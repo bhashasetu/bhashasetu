@@ -403,7 +403,7 @@ export default async function HomePage() {
               )}
 
               {chatSection && (
-                <div className="chat-panel">
+                <div className="home-chat-panel">
                   <div className="chat-content">
                     <div className="chat-heading">
                       <h2>{getContent(chatSection, "title")}</h2>
