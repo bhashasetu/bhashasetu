@@ -1,122 +1,94 @@
+import { SarvamAIClient } from "sarvamai";
+
 /**
  * The only file that talks to Sarvam.
  *
- * Written against Sarvam's published documentation for Bulbul v3 and the
- * Sarvam-105B chat models. Two details are worth knowing before editing:
+ * It used to hand-roll the HTTP calls against pasted documentation, which meant
+ * guessing which endpoint served which model and which field the audio came
+ * back in. This uses Sarvam's own client instead, so the request shapes are the
+ * contract rather than a reconstruction of it — and the guesses it removed were
+ * real: the chat client accepts sarvam-105b and nothing else, so the
+ * "conversations" variant this project was about to offer had no endpoint here
+ * at all.
  *
- *  - The chat endpoint depends on the model. sarvam-105b is served on the
- *    OpenAI-compatible /v2/chat/completions; sarvam-105b-conversations, meant
- *    for real-time dialogue, is on /v1. Sending a model to the wrong one fails.
+ * Two client defaults are overridden deliberately, and both matter:
  *
- *  - Bulbul takes a single `text`, not an array, and calls the language field
- *    `language_code`. It also warns that romanised Indic input degrades output
- *    badly — which is fine here, because the Hindi and Marathi answers are
- *    stored in Devanagari and are read as stored.
+ *  - maxRetries: 0. The SDK retries 429s and 5xxs with backoff. Every call from
+ *    this file is billed, and the assistant has a correct answer without any of
+ *    them — the stored one. A provider having a bad minute must not become a
+ *    bill, so a failure here falls through to the database rather than being
+ *    tried again.
  *
- * The one thing still taken on trust is the field the audio comes back in, so
- * the parser accepts either form Sarvam has used rather than betting on one.
+ *  - The key is read at call time from the server environment and never held in
+ *    a module-level client, so a build that starts before the environment is
+ *    populated cannot capture an empty one.
  */
-
-const BASE_URL = "https://api.sarvam.ai";
-const TTS_PATH = "/text-to-speech";
-const AUTH_HEADER = "api-subscription-key";
-
-/**
- * Where each chat model is served.
- *
- * sarvam-m and sarvam-30b are deprecated and deliberately absent: offering a
- * model that no longer answers would look like a bug the first time someone
- * chose it.
- */
-const CHAT_PATH_BY_MODEL: Record<string, string> = {
-  "sarvam-105b": "/v2/chat/completions",
-  "sarvam-105b-conversations": "/v1/chat/completions",
-};
-
-function chatPathFor(model: string): string | null {
-  return CHAT_PATH_BY_MODEL[model] ?? null;
-}
-
-/** Bulbul rejects anything longer; answers are 40-60 words, so this is slack. */
-const TTS_MAX_CHARS = 2500;
 
 /** Beyond this, a slow provider is a failure rather than a wait. */
-const TIMEOUT_MS = 12_000;
+const TIMEOUT_SECONDS = 12;
+
+/** Speech takes longer than text: upload, decode, transcribe. */
+const TRANSCRIBE_TIMEOUT_SECONDS = 25;
 
 export type SarvamResult<T> =
   | { ok: true; value: T }
   | { ok: false; status: number | null; detail: string };
 
-function keyOrNull(): string | null {
+function clientOrNull(): SarvamAIClient | null {
   const key = process.env.SARVAM_API_KEY?.trim();
-  return key ? key : null;
+  if (!key) return null;
+  return new SarvamAIClient({
+    apiSubscriptionKey: key,
+    maxRetries: 0,
+    timeoutInSeconds: TIMEOUT_SECONDS,
+  });
 }
 
 /**
- * One request, bounded and never retried.
+ * Whatever went wrong, in a form the Back Office can show.
  *
- * A paid call that failed is not retried automatically: a provider outage
- * would otherwise multiply into a bill, and the assistant has a perfectly good
- * answer without it — the deterministic one.
+ * Sarvam answers an invalid key with 403 rather than 401, which reads as a
+ * network block unless it is named — so it is named. The provider's own message
+ * is passed through because the only place it is ever shown is the admin test
+ * screen; a visitor sees none of this.
  */
-async function call(
-  path: string,
-  body: unknown,
-  accept: "json" | "audio"
-): Promise<SarvamResult<unknown>> {
-  const key = keyOrNull();
-  if (!key) {
-    return { ok: false, status: null, detail: "SARVAM_API_KEY is not set." };
-  }
+function failure(err: unknown): { ok: false; status: number | null; detail: string } {
+  const e = err as { statusCode?: number; body?: unknown; message?: string };
+  const status = typeof e?.statusCode === "number" ? e.statusCode : null;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const res = await fetch(BASE_URL + path, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        [AUTH_HEADER]: key,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      // The provider's own message is the most useful thing here, and it is
-      // shown only in the Back Office test — never to a visitor, and never
-      // logged with the key.
-      const text = await res.text().catch(() => "");
-      return { ok: false, status: res.status, detail: text.slice(0, 500) };
-    }
-
-    if (accept === "audio") {
-      const json = await res.json().catch(() => null);
-      return { ok: true, value: json };
-    }
-    return { ok: true, value: await res.json() };
-  } catch (err) {
-    const aborted = err instanceof Error && err.name === "AbortError";
+  if (status === 403) {
     return {
       ok: false,
-      status: null,
-      detail: aborted
-        ? `No response within ${TIMEOUT_MS / 1000} seconds.`
-        : err instanceof Error
-          ? err.message
-          : "Request failed",
+      status,
+      detail: "Rejected the key (Sarvam returns 403, not 401, for a bad key).",
     };
-  } finally {
-    clearTimeout(timer);
   }
+
+  const body =
+    typeof e?.body === "string" ? e.body : e?.body ? JSON.stringify(e.body) : "";
+  return {
+    ok: false,
+    status,
+    detail: (body || e?.message || "Request failed").slice(0, 500),
+  };
 }
+
+const NO_KEY = {
+  ok: false as const,
+  status: null,
+  detail: "SARVAM_API_KEY is not set.",
+};
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
   hi: "Hindi",
   mr: "Marathi",
 };
+
+/** Our three locales in the BCP-47 form every Sarvam endpoint expects. */
+function bcp47(locale: string): "en-IN" | "hi-IN" | "mr-IN" {
+  return locale === "hi" ? "hi-IN" : locale === "mr" ? "mr-IN" : "en-IN";
+}
 
 /**
  * Answer a help question, grounded in published FAQs.
@@ -136,6 +108,9 @@ export async function answerFromFaqs(options: {
   maxWords: number;
   faqs: { question: string; answer: string }[];
 }): Promise<SarvamResult<string>> {
+  const client = clientOrNull();
+  if (!client) return NO_KEY;
+
   const language = LANGUAGE_NAMES[options.locale] ?? "English";
 
   const context = options.faqs
@@ -159,44 +134,33 @@ export async function answerFromFaqs(options: {
     context,
   ].join("\n");
 
-  const path = chatPathFor(options.model);
-  if (!path) {
-    return {
-      ok: false,
-      status: null,
-      detail: `Unknown model "${options.model}".`,
-    };
-  }
-
-  const result = await call(
-    path,
-    {
-      model: options.model,
+  try {
+    const res = await client.chat.completions({
+      model: options.model as "sarvam-105b",
       messages: [
         { role: "system", content: system },
         { role: "user", content: options.question },
       ],
       temperature: 0.2,
       max_tokens: Math.ceil(options.maxWords * 2.5),
-    },
-    "json"
-  );
+    });
 
-  if (!result.ok) return result;
+    const choice = res.choices?.[0];
+    const text =
+      typeof choice?.message?.content === "string"
+        ? choice.message.content.trim()
+        : "";
 
-  const body = result.value as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const text = body?.choices?.[0]?.message?.content?.trim();
-
-  if (!text) {
-    return { ok: false, status: null, detail: "No answer in the response." };
+    if (!text) {
+      return { ok: false, status: null, detail: "No answer in the response." };
+    }
+    if (text.toUpperCase().includes("NO_ANSWER")) {
+      return { ok: false, status: null, detail: "NO_ANSWER" };
+    }
+    return { ok: true, value: text };
+  } catch (err) {
+    return failure(err);
   }
-  if (text.toUpperCase().includes("NO_ANSWER")) {
-    return { ok: false, status: null, detail: "NO_ANSWER" };
-  }
-
-  return { ok: true, value: text };
 }
 
 /**
@@ -212,53 +176,95 @@ export async function speak(options: {
   voice: string;
   locale: string;
 }): Promise<SarvamResult<string>> {
-  const result = await call(
-    TTS_PATH,
-    {
-      text: options.text.slice(0, TTS_MAX_CHARS),
-      language_code:
-        options.locale === "hi" ? "hi-IN" : options.locale === "mr" ? "mr-IN" : "en-IN",
-      speaker: options.voice,
+  const client = clientOrNull();
+  if (!client) return NO_KEY;
+
+  try {
+    const res = await client.textToSpeech.convert({
+      // bulbul:v3's limit. Answers are 40-60 words, so this is slack rather
+      // than a constraint anyone will meet.
+      text: options.text.slice(0, 2500),
+      language_code: bcp47(options.locale),
+      speaker: options.voice as "priya",
       model: "bulbul:v3",
-    },
-    "audio"
-  );
+    });
 
-  if (!result.ok) return result;
-
-  // Base64 audio, which the browser plays from a data: URL without the bytes
-  // needing to pass through storage. Sarvam has returned this under both
-  // `audios` and `audio`; either is accepted rather than guessing.
-  const body = result.value as { audios?: string[]; audio?: string };
-  const audio = body?.audios?.[0] ?? body?.audio;
-
-  if (!audio) {
-    return { ok: false, status: null, detail: "No audio in the response." };
+    const audio = res.audios?.[0];
+    if (!audio) {
+      return { ok: false, status: null, detail: "No audio in the response." };
+    }
+    return { ok: true, value: audio };
+  } catch (err) {
+    return failure(err);
   }
-  return { ok: true, value: audio };
+}
+
+/**
+ * Turn a spoken question into text.
+ *
+ * `transcribe`, never `translate`. The translate mode would turn a Hindi
+ * question into English before it reached the search — and the Hindi meanings
+ * in the collection are stored in Devanagari, so a translated question would
+ * miss entries that are sitting right there.
+ *
+ * The result is not sent anywhere on its own. It goes into the visitor's text
+ * box for them to read and correct, because Sarvam has no Warli or Katkari
+ * model: a spoken native word comes back as approximate Devanagari, and a
+ * transcript the visitor can see is a transcript they can fix.
+ */
+export async function transcribe(options: {
+  audio: Blob;
+  locale: string;
+}): Promise<SarvamResult<{ text: string; detectedLocale: string | null }>> {
+  const client = clientOrNull();
+  if (!client) return NO_KEY;
+
+  try {
+    const res = await client.speechToText.transcribe(
+      {
+        file: options.audio,
+        model: "saaras:v3",
+        mode: "transcribe",
+        // The visitor has already chosen a language in the panel. Saying so
+        // beats auto-detection on a three-second clip.
+        language_code: bcp47(options.locale),
+      },
+      { timeoutInSeconds: TRANSCRIBE_TIMEOUT_SECONDS }
+    );
+
+    const text = res.transcript?.trim();
+    if (!text) {
+      return { ok: false, status: null, detail: "Nothing was heard." };
+    }
+    return {
+      ok: true,
+      value: { text, detectedLocale: res.language_code ?? null },
+    };
+  } catch (err) {
+    return failure(err);
+  }
 }
 
 /** One minimal call, for the Back Office connection test. */
 export async function ping(model: string): Promise<SarvamResult<string>> {
-  const path = chatPathFor(model);
-  if (!path) {
-    return { ok: false, status: null, detail: `Unknown model "${model}".` };
-  }
+  const client = clientOrNull();
+  if (!client) return NO_KEY;
 
-  const result = await call(
-    path,
-    {
-      model,
+  try {
+    const res = await client.chat.completions({
+      model: model as "sarvam-105b",
       messages: [{ role: "user", content: "Reply with the single word: ok" }],
       max_tokens: 5,
-    },
-    "json"
-  );
-
-  if (!result.ok) return result;
-  const body = result.value as { choices?: { message?: { content?: string } }[] };
-  return {
-    ok: true,
-    value: body?.choices?.[0]?.message?.content?.trim() ?? JSON.stringify(body).slice(0, 200),
-  };
+    });
+    const content = res.choices?.[0]?.message?.content;
+    return {
+      ok: true,
+      value:
+        typeof content === "string" && content.trim()
+          ? content.trim()
+          : JSON.stringify(res).slice(0, 200),
+    };
+  } catch (err) {
+    return failure(err);
+  }
 }

@@ -235,16 +235,15 @@ export const chatVoiceValues = [
 ] as const;
 
 /**
- * Chat models this build knows how to reach.
+ * Chat models this build can reach.
  *
- * Each one is served on its own path — see lib/chat/sarvam.ts — so this is not
- * only a validation list: a model absent from it has no endpoint to be sent to.
- * sarvam-m and sarvam-30b are deprecated and deliberately excluded.
+ * One, and it is the SDK that says so: SarvamModelIds is the single literal
+ * "sarvam-105b". This list previously also offered sarvam-105b-conversations,
+ * read off the models overview page — the chat client has no way to send to it,
+ * so an editor choosing it would have got a failure at the moment a visitor
+ * asked a question. sarvam-m and sarvam-30b are deprecated.
  */
-export const chatModelValues = [
-  "sarvam-105b",
-  "sarvam-105b-conversations",
-] as const;
+export const chatModelValues = ["sarvam-105b"] as const;
 
 export const chatConfigInputSchema = z.object({
   enabled: z.boolean(),

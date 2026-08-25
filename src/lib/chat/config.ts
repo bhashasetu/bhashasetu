@@ -78,6 +78,7 @@ export async function getPublicChatConfig(supabase: SupabaseClient): Promise<{
   chatModel: string | null;
   maxResponseWords: number;
   ttsVoice: string;
+  asrEnabled: boolean;
 }> {
   const { data } = await supabase.rpc("chat_public_config");
   const row = Array.isArray(data) ? data[0] : data;
@@ -90,6 +91,7 @@ export async function getPublicChatConfig(supabase: SupabaseClient): Promise<{
     chatModel: row?.chat_model ?? null,
     maxResponseWords: row?.max_response_words ?? CHAT_CONFIG_DEFAULTS.max_response_words,
     ttsVoice: row?.tts_voice ?? CHAT_CONFIG_DEFAULTS.tts_voice,
+    asrEnabled: row?.asr_enabled === true,
   };
 }
 

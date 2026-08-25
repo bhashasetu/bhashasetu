@@ -323,6 +323,143 @@ function SpeakButton({ faqId, locale }: { faqId: string; locale: string }) {
 }
 
 /**
+ * Ask by speaking.
+ *
+ * The recording stops itself after MAX_SECONDS — Sarvam's REST transcription is
+ * for clips under thirty, and a mic left running by accident is both a bill and
+ * a thing nobody expects.
+ *
+ * What comes back goes into the text box. It is not sent. Sarvam has no Warli
+ * or Katkari model, so a spoken native word returns as approximate Devanagari;
+ * shown in the box that is an obvious typo the visitor fixes in a second, and
+ * sent straight to the search it is an unexplained "we have not collected
+ * that". Nothing is stored: the audio exists in the page and in one request.
+ */
+const MAX_SECONDS = 25;
+
+function MicButton({
+  locale,
+  onTranscript,
+  disabled,
+}: {
+  locale: string;
+  onTranscript: (text: string) => void;
+  disabled: boolean;
+}) {
+  const [state, setState] = useState<
+    "idle" | "recording" | "working" | "denied" | "failed"
+  >("idle");
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A recorder still holding the microphone after the panel has gone is a
+  // browser tab with a live "recording" indicator and no way to stop it.
+  useEffect(() => {
+    return () => {
+      if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+      const rec = recorderRef.current;
+      if (rec && rec.state !== "inactive") rec.stop();
+      rec?.stream.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  async function send(audio: Blob) {
+    setState("working");
+    try {
+      const form = new FormData();
+      form.append("audio", audio, "question.webm");
+      form.append("locale", locale);
+
+      const res = await fetch("/api/public/chat/transcribe", {
+        method: "POST",
+        body: form,
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok || !body.data?.text) {
+        setState("failed");
+        return;
+      }
+      onTranscript(body.data.text);
+      setState("idle");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  function stop() {
+    if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") rec.stop();
+  }
+
+  async function start() {
+    if (state === "recording") {
+      stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      rec.addEventListener("dataavailable", (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      });
+      rec.addEventListener("stop", () => {
+        stream.getTracks().forEach((t) => t.stop());
+        recorderRef.current = null;
+        if (chunks.length === 0) {
+          setState("idle");
+          return;
+        }
+        void send(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+      });
+
+      recorderRef.current = rec;
+      rec.start();
+      setState("recording");
+      stopTimerRef.current = setTimeout(stop, MAX_SECONDS * 1000);
+    } catch {
+      // Refused permission, or no microphone. Either way the text box works.
+      setState("denied");
+    }
+  }
+
+  if (state === "denied") {
+    return (
+      <span className="chat-mic__note" role="status">
+        No microphone — type instead.
+      </span>
+    );
+  }
+
+  const label =
+    state === "recording"
+      ? "Stop recording"
+      : state === "working"
+        ? "Listening to your question"
+        : "Ask by speaking";
+
+  return (
+    <button
+      type="button"
+      className={
+        state === "recording" ? "chat-mic chat-mic--live" : "chat-mic"
+      }
+      onClick={start}
+      disabled={disabled || state === "working"}
+      aria-label={label}
+      title={state === "failed" ? "That did not work — try again" : label}
+    >
+      <span aria-hidden="true">
+        {state === "recording" ? "■" : state === "working" ? "…" : "🎤"}
+      </span>
+    </button>
+  );
+}
+
+/**
  * My BhashaSetu.
  *
  * Deliberately hand-rolled rather than built on a chat SDK: most of what this
@@ -334,6 +471,7 @@ export function ChatPanel({
   defaultLocale,
   suggestions,
   canSpeak,
+  canListen,
 }: {
   enabled: boolean;
   defaultLocale: string;
@@ -341,6 +479,8 @@ export function ChatPanel({
   suggestions: { learn: string[]; help: string[] };
   /** Whether spoken answers are switched on in the Back Office. */
   canSpeak: boolean;
+  /** Whether spoken questions are switched on in the Back Office. */
+  canListen: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [mode, setMode] = useState<ChatMode>("learn");
@@ -566,6 +706,13 @@ export function ChatPanel({
           maxLength={500}
           autoComplete="off"
         />
+        {canListen && (
+          <MicButton
+            locale={locale}
+            disabled={sending}
+            onTranscript={(text) => setInput(text)}
+          />
+        )}
         <button
           type="submit"
           className="chat-composer__send"

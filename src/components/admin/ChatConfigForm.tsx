@@ -17,8 +17,7 @@ const LOCALE_LABELS: Record<string, string> = {
 };
 
 const MODEL_LABELS: Record<string, string> = {
-  "sarvam-105b": "sarvam-105b — general purpose",
-  "sarvam-105b-conversations": "sarvam-105b-conversations — real-time dialogue",
+  "sarvam-105b": "sarvam-105b — 128K context",
 };
 
 /**
@@ -299,10 +298,9 @@ export function ChatConfigForm({
                 ))}
               </select>
               <p className="hp-row__hint">
-                Both are served on different Sarvam endpoints, which this build
-                knows; a model outside this list has nowhere to be sent. Your
-                account still has to have access to the one you pick — Test
-                connection is how you find out.
+                The only chat model Sarvam&apos;s client can send to. Your
+                account still has to have access to it — Test connection is how
+                you find out.
               </p>
               <div className="cfg-test">
                 <button
@@ -374,8 +372,8 @@ export function ChatConfigForm({
           {toggle(
             "asr_enabled",
             "Accept spoken questions",
-            "Off for now. Speech recognition handles Hindi and Marathi well, and turns a spoken Warli word into approximate Devanagari that the lookup then misses.",
-            true
+            "A microphone beside the text box. What Sarvam hears goes into the box for the visitor to check and correct — it is never sent on their behalf, because a spoken Warli word comes back as approximate Devanagari and a transcript they can see is one they can fix.",
+            !sarvamConfigured
           )}
         </div>
       </section>
