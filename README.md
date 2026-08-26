@@ -152,10 +152,10 @@ running server and a stand-in for Supabase, and are not in the repository yet.
   to `chat_config` beside the persona.
 - Silence detection has never been tried in a real room. `SPEECH_LEVEL` and
   `SILENCE_MS` in `src/lib/chat/listening.ts` are the two numbers to adjust.
-- The *Configured / Not configured* view of provider keys that `CLAUDE.md` §19
-  asks for has not been built. Keys are safe — they are read on the server and
-  never displayed — but there is nowhere in the Back Office to see at a glance
-  which providers are set up.
+- *Configured / Not configured* is shown per provider in the screen that uses
+  it — Sarvam on `/admin/chat`, the image providers in the media picker — but
+  there is no single Configuration module listing all of them in one place, as
+  `CLAUDE.md` §20 envisages.
 
 ---
 
