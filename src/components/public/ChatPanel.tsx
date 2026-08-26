@@ -507,11 +507,91 @@ async function asWav(recording: Blob): Promise<Blob> {
   }
 }
 
+/**
+ * Starting a spoken conversation.
+ *
+ * The assistant says hello and asks what the visitor wants to learn, and then
+ * the microphone opens by itself — so the visitor's next move is to speak, not
+ * to find another button. Greeting and listening are one action, because to the
+ * person using it they are one action.
+ *
+ * The greeting is named by key, never sent as text: the server owns the words.
+ * See lib/chat/spoken-phrases.ts for why that rule is not relaxed.
+ */
+function CallButton({
+  locale,
+  onGreeted,
+  onFailure,
+  disabled,
+}: {
+  locale: string;
+  onGreeted: () => void;
+  onFailure: (message: string) => void;
+  disabled: boolean;
+}) {
+  const [state, setState] = useState<"idle" | "calling">("idle");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  async function call() {
+    setState("calling");
+    try {
+      const res = await fetch("/api/public/chat/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phrase: "call_open", locale }),
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok || !body.data?.audio) {
+        setState("idle");
+        onFailure(body.error ?? "The greeting could not be played. You can type instead.");
+        return;
+      }
+
+      const audio = new Audio(`data:audio/wav;base64,${body.data.audio}`);
+      audioRef.current = audio;
+      // The turn passes to the visitor the moment the question ends.
+      audio.addEventListener("ended", () => {
+        setState("idle");
+        onGreeted();
+      });
+      audio.addEventListener("error", () => {
+        setState("idle");
+        onGreeted();
+      });
+      await audio.play();
+    } catch {
+      setState("idle");
+      onFailure("The greeting could not be played. You can type instead.");
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={state === "calling" ? "chat-call chat-call--live" : "chat-call"}
+      onClick={() => void call()}
+      disabled={disabled || state === "calling"}
+    >
+      <span aria-hidden="true">🔊</span>
+      <span>{state === "calling" ? "Speaking…" : "Call"}</span>
+    </button>
+  );
+}
+
 function MicButton({
   locale,
   onTranscript,
   onFailure,
   disabled,
+  startNow,
 }: {
   locale: string;
   onTranscript: (text: string) => void;
@@ -525,6 +605,11 @@ function MicButton({
    */
   onFailure: (message: string) => void;
   disabled: boolean;
+  /**
+   * Bumped when something else — the greeting finishing — should open the
+   * microphone. A counter rather than a boolean so a second call re-opens it.
+   */
+  startNow?: number;
 }) {
   const [state, setState] = useState<
     "idle" | "recording" | "working" | "denied" | "failed"
@@ -578,6 +663,13 @@ function MicButton({
     const rec = recorderRef.current;
     if (rec && rec.state !== "inactive") rec.stop();
   }
+
+  // The greeting finishing is a request to listen. Guarded on state so a
+  // re-render cannot restart a recording that is already running.
+  useEffect(() => {
+    if (startNow && state === "idle") void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startNow]);
 
   async function start() {
     if (state === "recording") {
@@ -710,6 +802,8 @@ export function ChatPanel({
   );
   const [sending, setSending] = useState(false);
   const current = MODULES.find((m) => m.id === mode) ?? MODULES[0];
+  // Incremented when the greeting ends, which opens the microphone.
+  const [listenAfterGreeting, setListenAfterGreeting] = useState(0);
   const starters = suggestions[mode] ?? [];
   const threadRef = useRef<HTMLDivElement | null>(null);
   // Ids only need to be unique within this thread, so a counter serves and
@@ -958,10 +1052,24 @@ export function ChatPanel({
           maxLength={500}
           autoComplete="off"
         />
+        {canSpeak && canListen && mode === "learn" && (
+          <CallButton
+            locale={locale}
+            disabled={sending}
+            onGreeted={() => setListenAfterGreeting((n) => n + 1)}
+            onFailure={(message) =>
+              setMessages((m) => [
+                ...m,
+                { id: `call${(nextId.current += 1)}`, role: "error", text: message },
+              ])
+            }
+          />
+        )}
         {canListen && (
           <MicButton
             locale={locale}
             disabled={sending}
+            startNow={listenAfterGreeting}
             onFailure={(message) =>
               setMessages((m) => [
                 ...m,
