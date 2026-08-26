@@ -41,6 +41,13 @@ export const learningEntryInputSchema = z.object({
   region: z.string().trim().max(255).optional().nullable(),
   speaker_notes: z.string().trim().max(5000).optional().nullable(),
   display_order: z.number().int().optional(),
+  /**
+   * Shown in the Language Explorer's Explore & Discover panel.
+   *
+   * The column has existed since the first migration and nothing ever read or
+   * wrote it. The panel does now, so an editor needs a way to set it.
+   */
+  featured: z.boolean().optional(),
 });
 
 /**
@@ -136,7 +143,13 @@ export const aliasInputSchema = z.object({
 
 export const mediaLinkInputSchema = z.object({
   media_asset_id: z.string().uuid(),
-  linked_entry_type: z.literal("learning_entry"),
+  /**
+   * What the asset is attached to. "language" carries the Language Explorer's
+   * per-language card art; the same list is enforced again in
+   * lib/media/url-generator.ts before anything is signed, so widening it here
+   * does not widen what a visitor can fetch.
+   */
+  linked_entry_type: z.enum(["learning_entry", "language"]),
   linked_entry_id: z.string().uuid(),
   link_type: z.string().trim().min(1).max(100),
   link_order: z.number().int().optional(),

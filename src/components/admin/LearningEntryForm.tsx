@@ -13,6 +13,7 @@ type Entry = {
   language_id: string;
   category_id: string;
   entry_type: string;
+  featured?: boolean | null;
   native_text: string;
   transliteration: string | null;
   english_meaning: string;
@@ -64,6 +65,7 @@ export function LearningEntryForm({
   );
   const [hindiMeaning, setHindiMeaning] = useState(entry?.hindi_meaning ?? "");
   const [region, setRegion] = useState(entry?.region ?? "");
+  const [featured, setFeatured] = useState(entry?.featured ?? false);
   const [speakerNotes, setSpeakerNotes] = useState(entry?.speaker_notes ?? "");
 
   const [audioAssetId, setAudioAssetId] = useState<string | null>(
@@ -134,6 +136,7 @@ export function LearningEntryForm({
         english_meaning: englishMeaning,
         hindi_meaning: hindiMeaning || null,
         region: region || null,
+        featured,
         speaker_notes: speakerNotes || null,
       }),
     });
@@ -344,6 +347,21 @@ export function LearningEntryForm({
               maxLength={255}
               disabled={saving}
             />
+          </Row>
+
+          <Row label="Feature this word" htmlFor="featured">
+            <label className="hp-check">
+              <input
+                id="featured"
+                type="checkbox"
+                checked={featured}
+                onChange={(e) => setFeatured(e.target.checked)}
+                disabled={saving}
+              />
+              <span>
+                Show in the Language Explorer&apos;s Explore &amp; Discover panel
+              </span>
+            </label>
           </Row>
 
           <Row label="Notes (internal)" htmlFor="speaker_notes">

@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/faqs", label: "Help & FAQ", icon: "chat" },
   { href: "/admin/chat", label: "My BhashaSetu", icon: "chat" },
   { href: "/admin/pages", label: "Pages", icon: "tag" },
+  { href: "/admin/suggestions", label: "Suggested Words", icon: "tag" },
   { href: "/admin/media", label: "Media", icon: "image" },
 ] as const;
 

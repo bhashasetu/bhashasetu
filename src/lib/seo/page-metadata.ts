@@ -13,6 +13,7 @@ import { SITE_URL } from "@/lib/env";
 export const ROUTE_BY_SLUG: Record<string, string> = {
   homepage: "/",
   "stories-voices": "/stories",
+  "language-explorer": "/languages",
 };
 
 export function routeForSlug(slug: string): string {
