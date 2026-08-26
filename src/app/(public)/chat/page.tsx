@@ -59,15 +59,27 @@ export default async function ChatPage() {
    * pressed it would be told the collection does not have it. Built from real
    * rows, a suggestion is always a question the assistant can answer.
    */
+  /**
+   * Each starting point carries what to show and what to ask, separately.
+   *
+   * They used to be one string: the chip read "How do you say X in Katkari?"
+   * and the server took that sentence apart again to recover X. A round trip
+   * through a regex for a value we already had — and one that breaks as soon as
+   * a meaning contains a quote, a question mark or the word "in". The label is
+   * for the reader; the query is the term, exactly as it is stored.
+   */
   const suggestions = {
-    help: faqs.slice(0, 3).map((f) => f.question_en),
+    help: faqs.slice(0, 3).map((f) => ({ label: f.question_en, query: f.question_en })),
     learn: ((entries ?? []) as unknown as {
       english_meaning: string | null;
       languages: { name: string } | null;
     }[])
       .filter((e) => e.english_meaning && e.languages?.name)
       .slice(0, 3)
-      .map((e) => `How do you say "${e.english_meaning}" in ${e.languages!.name}?`),
+      .map((e) => ({
+        label: `How do you say “${e.english_meaning}” in ${e.languages!.name}?`,
+        query: e.english_meaning!,
+      })),
   };
 
   return (
