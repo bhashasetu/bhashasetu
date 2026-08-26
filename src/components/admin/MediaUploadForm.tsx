@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { uploadMediaDirect, shouldUploadDirect } from "@/lib/media/direct-upload";
+import { downscaleImage } from "@/lib/media/downscale-image";
 
 export function MediaUploadForm() {
   const router = useRouter();
@@ -19,8 +21,28 @@ export function MediaUploadForm() {
     setError(null);
     setUploading(true);
 
+    // Recordings go straight from the browser to storage: a Vercel
+    // serverless function rejects request bodies over 4.5 MB before the
+    // handler runs, so an mp4 posted here never arrived.
+    if (shouldUploadDirect(file)) {
+      const result = await uploadMediaDirect(file, { title: title || null });
+      setUploading(false);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setFile(null);
+      setTitle("");
+      router.refresh();
+      return;
+    }
+
+    // No crop step here, so an oversized photo would hit Vercel's 4.5 MB
+    // request-body limit and fail with an opaque 413.
+    const toSend = await downscaleImage(file);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", toSend);
     if (title) formData.append("title", title);
 
     const res = await fetch("/api/admin/media/upload", {
@@ -44,7 +66,10 @@ export function MediaUploadForm() {
   return (
     <form onSubmit={handleSubmit}>
       <h2>Upload Media</h2>
-      <p>Approved formats: audio (.mp3, .m4a, .wav, .ogg), image (.jpg, .png, .webp, .svg)</p>
+      <p>
+        Approved formats: audio (.mp3, .m4a, .wav, .ogg), video (.mp4, .webm,
+        .mov), image (.jpg, .png, .webp, .svg). Up to 50 MB per file.
+      </p>
       <div>
         <label htmlFor="file">File</label>
         <input

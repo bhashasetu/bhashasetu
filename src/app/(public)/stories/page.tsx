@@ -1,105 +1,453 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { MediaSlotImage } from "@/components/public/MediaSlotImage";
-import { findContent, findSection, findSlot } from "@/lib/cms/page-content";
+import { SlotMedia } from "@/components/public/SlotMedia";
+import { StoryCard } from "@/components/public/StoryCard";
+import { FeaturedStoryPanel } from "@/components/public/FeaturedStoryPanel";
+import { AudioStoryCard } from "@/components/public/AudioStoryCard";
+import { StoryFilters } from "@/components/public/StoryFilters";
+import { renderAccented } from "@/lib/content/accent";
+import {
+  findContent,
+  findSection,
+  findSlot,
+  type PageSection,
+} from "@/lib/cms/page-content";
+import { resolveSlotUrls } from "@/lib/media/resolve-slot-urls";
+import { framing } from "@/lib/media/framing";
+import {
+  buildPageMetadata,
+  absoluteUrl,
+  routeForSlug,
+} from "@/lib/seo/page-metadata";
+import {
+  getStories,
+  getStoryFacets,
+  getFeaturedStory,
+  getStoryCounts,
+  parseStoryFilters,
+  resolveStoryAssetUrls,
+  formatDuration,
+} from "@/lib/stories/queries";
+import "./stories.css";
 
-export default async function StoriesPage() {
+const PAGE_SLUG = "stories-voices";
+
+/** How many cards each rail shows before the "view all" link takes over. */
+const INTERVIEW_LIMIT = 5;
+const AUDIO_LIMIT = 4;
+
+export async function generateMetadata() {
+  return buildPageMetadata({
+    slug: PAGE_SLUG,
+    fallback: {
+      title: "Stories & Voices",
+      description:
+        "Listen, watch and learn from the people who carry Warli and Katkari heritage in their hearts.",
+    },
+  });
+}
+
+export default async function StoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createClient();
+  const params = await searchParams;
 
-  const { data: storiesPage } = await supabase
+  const { data: page } = await supabase
     .from("pages")
     .select(
       `
-      *,
+      id, title, description, page_summary,
       page_sections(
-        *,
-        media_slots(
-          id,
-          slot_key,
-          media_type,
-          aspect_ratio
-        ),
-        page_content(*)
+        id, section_key, display_order,
+        page_content(id, field_key, content),
+        media_slots(id, slot_key, media_type, aspect_ratio)
       )
       `
     )
-    .eq("slug", "stories-voices")
+    .eq("slug", PAGE_SLUG)
     .eq("status", "published")
     .single();
 
-  if (!storiesPage) {
+  if (!page) {
     return (
-      <main>
-        <h1>Stories & Voices</h1>
-        <p>Inspiring stories from the Warli and Katkari communities.</p>
+      <div className="stories-error">
+        <h1>Stories &amp; Voices</h1>
+        <p>This page is not yet configured in the CMS.</p>
         <Link href="/">← Home</Link>
-      </main>
+      </div>
     );
   }
 
-  const getSection = (sectionKey: string) =>
-    findSection(storiesPage.page_sections, sectionKey);
-  const getContent = findContent;
-  const getSlot = findSlot;
+  const sections: PageSection[] = page.page_sections ?? [];
+  const heroSection = findSection(sections, "hero");
+  const interviewsSection = findSection(sections, "community_interviews");
+  const audioSection = findSection(sections, "voices_audio");
+  const featuredSection = findSection(sections, "featured_story");
+  const teamSection = findSection(sections, "student_team");
+  const closingSection = findSection(sections, "footer_strip");
 
-  const featuredSection = getSection("featured_interview");
-  // Bound once: guarding on getSlot(...) then calling it again to read .id
+  // Bound once each: calling findSlot() twice — to guard, then to read .id —
   // means the guard never narrows the second call.
-  const featuredThumbnail = getSlot(featuredSection, "interview_thumbnail");
-  const gridSection = getSection("interview_grid");
+  const heroSlot = findSlot(heroSection, "hero_image");
+  const studentSlots = [1, 2, 3, 4].map((n) =>
+    findSlot(teamSection, `student_photo_${n}`)
+  );
+
+  const facets = await getStoryFacets(supabase);
+  const filters = parseStoryFilters(params, {
+    languageCodes: facets.languages.map((l) => l.code),
+    themes: facets.themes,
+    ageGroups: facets.ageGroups,
+  });
+
+  // A chosen format narrows both rails; with none chosen each rail shows its
+  // own kind, as the approved design does.
+  const showInterviews = !filters.format || filters.format === "interview";
+  const showAudio = !filters.format || filters.format !== "interview";
+
+  const [interviews, audioClips, featured, counts, slotUrls] = await Promise.all([
+    showInterviews
+      ? getStories(supabase, { format: "interview", filters, limit: INTERVIEW_LIMIT })
+      : Promise.resolve([]),
+    showAudio
+      ? getStories(supabase, {
+          format: filters.format === "song" ? ["song"] : ["audio", "song"],
+          filters,
+          limit: AUDIO_LIMIT,
+        })
+      : Promise.resolve([]),
+    getFeaturedStory(supabase),
+    getStoryCounts(supabase),
+    resolveSlotUrls(
+      supabase,
+      [heroSlot, ...studentSlots].flatMap((s) => (s ? [s.id] : []))
+    ),
+  ]);
+
+  // Every card needs its recording as well as its still. Only the thumbnails
+  // were resolved here, so interviews and the featured story had no media to
+  // play however it had been attached in the Back Office.
+  const assetUrls = await resolveStoryAssetUrls(supabase, [
+    ...interviews.flatMap((s) => [s.thumbnail_asset_id, s.media_asset_id]),
+    ...audioClips.flatMap((s) => [s.thumbnail_asset_id, s.media_asset_id]),
+    featured?.thumbnail_asset_id ?? null,
+    featured?.media_asset_id ?? null,
+  ]);
+
+  const slotMedia = (slot?: { id: string }) =>
+    slot ? slotUrls.get(slot.id) ?? null : null;
+  const asset = (id: string | null) => (id ? assetUrls.get(id) ?? null : null);
+  /** Poster images are always stored files, never hosted video. */
+  const assetUrl = (id: string | null) => asset(id)?.url ?? null;
+
+  // Two of the four hero figures are counts we can derive and therefore
+  // guarantee; the other two are editorial. Anything blank or zero is
+  // omitted rather than shown as a placeholder (CLAUDE.md section 25).
+  const stats = [
+    { value: counts.interviews || null, label: findContent(heroSection, "stat_1_label") },
+    { value: counts.audioClips || null, label: findContent(heroSection, "stat_2_label") },
+    { value: findContent(heroSection, "stat_3_value"), label: findContent(heroSection, "stat_3_label") },
+    { value: findContent(heroSection, "stat_4_value"), label: findContent(heroSection, "stat_4_label") },
+  ]
+    .map((s) => ({ value: s.value ? String(s.value) : "", label: s.label ?? "" }))
+    .filter((s) => s.value && s.label);
+
+  const quoteText = findContent(heroSection, "quote_text");
+  const quoteAttribution = findContent(heroSection, "quote_attribution");
+  const closingQuote = findContent(closingSection, "quote");
+  const noStoriesAtAll =
+    interviews.length === 0 && audioClips.length === 0 && !featured;
+  const filtersActive = Boolean(
+    filters.lang || filters.format || filters.theme || filters.age
+  );
+
+  // Only real, published records are described; nothing is asserted about
+  // content that does not exist.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: page.title,
+    description: page.page_summary || page.description || undefined,
+    url: absoluteUrl(routeForSlug(PAGE_SLUG)),
+    isPartOf: { "@type": "WebSite", name: "Bhasha Setu", url: absoluteUrl("/") },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: interviews.length + audioClips.length,
+      itemListElement: [...interviews, ...audioClips].map((story, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: story.title,
+        ...(story.summary ? { description: story.summary } : {}),
+      })),
+    },
+  };
 
   return (
-    <main>
-      <h1>{storiesPage.title || "Stories & Voices"}</h1>
-      <p>{storiesPage.description}</p>
+    <div className="stories-page">
+      <script
+        type="application/ld+json"
+        // Serialised server-side from database rows only.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
-      {/* Featured Interview */}
-      {featuredSection && (
-        <section>
-          <h2>{getContent(featuredSection, "heading") || "Featured Voice"}</h2>
-
-          {featuredThumbnail && (
-            <MediaSlotImage
-              slotId={featuredThumbnail.id}
-              altText="Featured interview"
-              aspectRatio="16:9"
+      {/* ===== HERO ===== */}
+      {heroSection && (
+        <section className="sv-hero">
+          <div className="sv-hero__media">
+            <SlotMedia
+              url={slotMedia(heroSlot)?.url ?? null}
+              sourceUrl={slotMedia(heroSlot)?.sourceUrl ?? null}
+              altText="Warli and Katkari community members"
+              aspectRatio={heroSlot?.aspect_ratio ?? "2:1"}
+              label="Community photograph"
+              priority
+              {...framing(slotMedia(heroSlot))}
+              className="sv-hero__image"
             />
-          )}
+          </div>
 
-          <p>{getContent(featuredSection, "description")}</p>
-          <Link href="#interviews">View all interviews</Link>
-        </section>
-      )}
+          <div className="sv-hero__inner">
+            <div className="sv-hero__copy">
+              <h1 className="sv-hero__title">
+                {renderAccented(findContent(heroSection, "heading"))}
+              </h1>
+              <p className="sv-hero__tagline">
+                {findContent(heroSection, "tagline")}
+              </p>
+              <p className="sv-hero__description">
+                {findContent(heroSection, "description")}
+              </p>
 
-      {/* Interview Grid */}
-      {gridSection && (
-        <section id="interviews">
-          <h2>{getContent(gridSection, "heading") || "All Interviews"}</h2>
+              {stats.length > 0 && (
+                <dl className="sv-stats">
+                  {stats.map((stat) => (
+                    <div className="sv-stat" key={stat.label}>
+                      <span className="sv-stat__icon" aria-hidden="true">
+                        ●
+                      </span>
+                      <div className="sv-stat__text">
+                        <dd className="sv-stat__value">{stat.value}</dd>
+                        <dt className="sv-stat__label">{stat.label}</dt>
+                      </div>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" }}>
-            {gridSection.media_slots
-              ?.filter((s) => s.slot_key?.startsWith("interview_"))
-              .sort((a, b) => {
-                const aNum = parseInt(a.slot_key.replace("interview_", "")) || 0;
-                const bNum = parseInt(b.slot_key.replace("interview_", "")) || 0;
-                return aNum - bNum;
-              })
-              .map((slot) => (
-                <article key={slot.id}>
-                  <MediaSlotImage
-                    slotId={slot.id}
-                    altText="Interview participant"
-                    aspectRatio="1:1"
-                  />
-                </article>
-              ))}
+            {quoteText && (
+              <figure className="sv-quote">
+                <span className="sv-quote__mark" aria-hidden="true">
+                  &ldquo;
+                </span>
+                <blockquote>{quoteText}</blockquote>
+                {quoteAttribution && (
+                  <figcaption>&ndash; {quoteAttribution}</figcaption>
+                )}
+              </figure>
+            )}
           </div>
         </section>
       )}
 
-      <p>
-        <Link href="/">← Home</Link>
-      </p>
-    </main>
+      {/* ===== FILTERS ===== */}
+      <StoryFilters
+        languages={facets.languages}
+        themes={facets.themes}
+        ageGroups={facets.ageGroups}
+        current={filters}
+      />
+
+      {/* ===== COMMUNITY INTERVIEWS ===== */}
+      {interviewsSection && showInterviews && (
+        <section className="sv-section" aria-labelledby="sec-interviews">
+          <header className="sv-section__head">
+            <h2 id="sec-interviews" className="sv-section__title">
+              <span className="sv-section__icon" aria-hidden="true">
+                🎬
+              </span>
+              {findContent(interviewsSection, "heading")}
+            </h2>
+            <p className="sv-section__subtitle">
+              {findContent(interviewsSection, "subtitle")}
+            </p>
+            <Link href="/stories?format=interview" className="sv-section__link">
+              {findContent(interviewsSection, "cta_text")}{" "}
+              <span aria-hidden="true">→</span>
+            </Link>
+          </header>
+
+          {interviews.length > 0 ? (
+            <div className="story-rail story-rail--interviews">
+              {interviews.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  thumbnailUrl={assetUrl(story.thumbnail_asset_id)}
+                  thumbnailFit={asset(story.thumbnail_asset_id)?.fit}
+                  thumbnailPosition={
+                    asset(story.thumbnail_asset_id)?.objectPosition
+                  }
+                  mediaUrl={asset(story.media_asset_id)?.url ?? null}
+                  mediaSourceUrl={asset(story.media_asset_id)?.sourceUrl ?? null}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="sv-empty">
+              {filtersActive
+                ? "No interviews match these filters yet."
+                : "No interviews have been published yet."}
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* ===== VOICES IN AUDIO + FEATURED STORY ===== */}
+      {(audioSection || featuredSection) && (
+        <section className="sv-band">
+          {audioSection && showAudio && (
+            <div className="sv-audio">
+              <header className="sv-section__head">
+                <h2 className="sv-section__title">
+                  <span className="sv-section__icon" aria-hidden="true">
+                    🎧
+                  </span>
+                  {findContent(audioSection, "heading")}
+                </h2>
+                <p className="sv-section__subtitle">
+                  {findContent(audioSection, "subtitle")}
+                </p>
+                <Link href="/stories?format=audio" className="sv-section__link">
+                  {findContent(audioSection, "cta_text")}{" "}
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </header>
+
+              {audioClips.length > 0 ? (
+                <div className="story-rail story-rail--audio">
+                  {audioClips.map((story) => (
+                    <AudioStoryCard
+                      key={story.id}
+                      story={story}
+                      thumbnailUrl={assetUrl(story.thumbnail_asset_id)}
+                  thumbnailFit={asset(story.thumbnail_asset_id)?.fit}
+                  thumbnailPosition={
+                    asset(story.thumbnail_asset_id)?.objectPosition
+                  }
+                      audioUrl={asset(story.media_asset_id)?.url ?? null}
+                      audioSourceUrl={
+                        asset(story.media_asset_id)?.sourceUrl ?? null
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="sv-empty">
+                  {filtersActive
+                    ? "No audio clips match these filters yet."
+                    : "No audio clips have been published yet."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {featuredSection && featured && (
+            <FeaturedStoryPanel
+              title={featured.title}
+              summary={featured.summary}
+              badge={findContent(featuredSection, "label")}
+              ctaText={findContent(featuredSection, "cta_text")}
+              posterUrl={assetUrl(featured.thumbnail_asset_id)}
+              posterFit={asset(featured.thumbnail_asset_id)?.fit}
+              posterPosition={
+                asset(featured.thumbnail_asset_id)?.objectPosition
+              }
+              mediaUrl={asset(featured.media_asset_id)?.url ?? null}
+              mediaSourceUrl={asset(featured.media_asset_id)?.sourceUrl ?? null}
+              duration={formatDuration(featured.duration_seconds)}
+            />
+          )}
+        </section>
+      )}
+
+      {noStoriesAtAll && (
+        <p className="sv-archive-empty">
+          The archive is being prepared. Recorded stories will appear here once
+          they have been verified and the speakers have given their consent.
+        </p>
+      )}
+
+      {/* ===== RECORDED BY THE STUDENT TEAM ===== */}
+      {teamSection && (
+        <section className="sv-team" aria-labelledby="sec-team">
+          <div className="sv-team__copy">
+            <h2 id="sec-team" className="sv-team__title">
+              <span className="sv-section__icon" aria-hidden="true">
+                👥
+              </span>
+              <span className="sv-team__title-desktop">
+                {findContent(teamSection, "heading")}
+              </span>
+              <span className="sv-team__title-mobile">
+                {findContent(teamSection, "mobile_heading")}
+              </span>
+            </h2>
+            <p className="sv-team__text sv-team__text--desktop">
+              {findContent(teamSection, "description")}
+            </p>
+            <p className="sv-team__text sv-team__text--mobile">
+              {findContent(teamSection, "mobile_subtitle")}
+            </p>
+          </div>
+
+          <div className="sv-team__photos">
+            {studentSlots.map((slot, i) => (
+              <figure className="sv-team__photo" key={slot?.id ?? i}>
+                <SlotMedia
+                  url={slotMedia(slot)?.url ?? null}
+                  sourceUrl={slotMedia(slot)?.sourceUrl ?? null}
+                  altText={findContent(teamSection, `photo_${i + 1}_caption`) ?? ""}
+                  aspectRatio={slot?.aspect_ratio ?? "4:3"}
+                  label="Field photograph"
+                  {...framing(slotMedia(slot))}
+                />
+                <figcaption>
+                  {findContent(teamSection, `photo_${i + 1}_caption`)}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+
+          <aside className="sv-ethics">
+            <h3 className="sv-ethics__title">
+              <span aria-hidden="true">🛡</span>{" "}
+              {findContent(teamSection, "ethics_heading")}
+            </h3>
+            <p>{findContent(teamSection, "ethics_description")}</p>
+            <Link href="/about" className="sv-ethics__link">
+              {findContent(teamSection, "ethics_cta_text")}{" "}
+              <span aria-hidden="true">→</span>
+            </Link>
+          </aside>
+        </section>
+      )}
+
+      {/* ===== CLOSING QUOTE ===== */}
+      {closingQuote && (
+        <section className="sv-closing">
+          <span className="sv-closing__leaf" aria-hidden="true">
+            ❧
+          </span>
+          <p>{closingQuote}</p>
+          <span className="sv-closing__leaf" aria-hidden="true">
+            ❧
+          </span>
+        </section>
+      )}
+    </div>
   );
 }

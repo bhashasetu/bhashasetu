@@ -11,6 +11,9 @@ const NAV = [
   { href: "/admin/categories", label: "Categories", icon: "tag" },
   { href: "/admin/learning-entries", label: "Words & Phrases", icon: "chat" },
   { href: "/admin/homepage", label: "Homepage Content", icon: "home" },
+  { href: "/admin/stories", label: "Stories & Voices", icon: "mic" },
+  { href: "/admin/faqs", label: "Help & FAQ", icon: "chat" },
+  { href: "/admin/chat", label: "My BhashaSetu", icon: "chat" },
   { href: "/admin/pages", label: "Pages", icon: "tag" },
   { href: "/admin/media", label: "Media", icon: "image" },
 ] as const;
@@ -25,6 +28,7 @@ const ICONS: Record<string, string> = {
   home: "M12 3l9 8h-3v10h-5v-6H11v6H6V11H3l9-8z",
   image:
     "M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2 12l4-5 3 4 3-3 4 5H5zm3-7a2 2 0 110-4 2 2 0 010 4z",
+  mic: "M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-4 4.9V19h3v2H8v-2h3v-3.1A5 5 0 017 11h2a3 3 0 006 0h2z",
 };
 
 export function AdminIcon({ name, size = 20 }: { name: string; size?: number }) {

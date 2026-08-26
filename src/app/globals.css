@@ -3,15 +3,14 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 html {
   height: 100%;
+  /* Bhasha Setu has one palette, and it is a light one. Without this the
+     browser keeps painting form controls for a dark theme the rest of the page
+     does not have — a visitor in dark mode got a near-black text box sitting in
+     a white panel. Left over from create-next-app, along with a dark --background
+     that nothing here honours. */
+  color-scheme: light;
 }
 
 html,
@@ -40,10 +39,4 @@ body {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
 }

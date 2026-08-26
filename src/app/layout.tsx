@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Poppins } from "next/font/google";
+import { SITE_URL } from "@/lib/env";
 import "./globals.css";
 
 // Display face for headings and the wordmark; body face for running text.
@@ -22,7 +23,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bhasha Setu",
+  // Without metadataBase, relative canonical and Open Graph URLs are dropped
+  // rather than resolved, so every page's generateMetadata needs this set.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Bhasha Setu",
+    template: "%s | Bhasha Setu",
+  },
   description: "Learn Warli and Katkari",
 };
 

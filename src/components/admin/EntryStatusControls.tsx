@@ -45,27 +45,45 @@ export function EntryStatusControls({
   const options = NEXT_STATUS[status] ?? [];
 
   return (
-    <div>
-      <p>
-        Current status: <strong>{status}</strong>
-      </p>
-      {error && <p role="alert">{error}</p>}
-      {options.map((opt) => (
-        <button key={opt.next} onClick={() => transition(opt.next)} disabled={saving}>
-          {opt.label}
-        </button>
-      ))}
-      {status !== "archived" && (
-        <button onClick={() => transition("archived")} disabled={saving}>
-          Archive
-        </button>
-      )}
+    <section className="admin-card hp-section">
+      <header className="hp-section__head">
+        <h3>Verification &amp; publishing</h3>
+        <span className={`admin-pill admin-pill--${status}`}>{status}</span>
+      </header>
+
+      {error && <p className="hp-msg hp-msg--error">{error}</p>}
+
+      <div className="story-status__actions">
+        {options.map((opt) => (
+          <button
+            key={opt.next}
+            type="button"
+            className="admin-btn admin-btn--primary"
+            onClick={() => transition(opt.next)}
+            disabled={saving}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {status !== "archived" && (
+          <button
+            type="button"
+            className="admin-btn admin-btn--ghost"
+            onClick={() => transition("archived")}
+            disabled={saving}
+          >
+            Archive
+          </button>
+        )}
+      </div>
+
       {status === "published" && (
-        <p>
-          Note: publishing this entry does not publish its linked media. Publish each
-          media asset independently in the Media Library.
+        <p className="hp-row__hint">
+          Publishing this entry does not publish its recording. Media has its
+          own lifecycle — publish the asset in the Media Library for it to play
+          on the public site.
         </p>
       )}
-    </div>
+    </section>
   );
 }

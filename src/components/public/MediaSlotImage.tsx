@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseVideoUrl } from "@/lib/media/video-embed";
 
 function ratioToPadding(aspectRatio?: string): string | undefined {
   if (!aspectRatio) return undefined;
@@ -33,6 +34,7 @@ export function MediaSlotImage({
   mediaType?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,7 +45,10 @@ export function MediaSlotImage({
         const params = new URLSearchParams({ slot_id: slotId });
         const res = await fetch(`/api/public/media-slot?${params.toString()}`);
         const body = await res.json().catch(() => ({ data: null }));
-        if (!cancelled) setUrl(body.data?.url ?? null);
+        if (!cancelled) {
+          setUrl(body.data?.url ?? null);
+          setSourceUrl(body.data?.sourceUrl ?? null);
+        }
       } catch {
         if (!cancelled) setUrl(null);
       } finally {
@@ -68,6 +73,24 @@ export function MediaSlotImage({
     width: "100%",
     height: "100%",
   };
+
+  // A hosted video (YouTube/Vimeo) has no stored object to sign.
+  const embed = sourceUrl ? parseVideoUrl(sourceUrl) : null;
+  if (embed) {
+    return (
+      <div className="media-slot" style={frameStyle}>
+        <iframe
+          src={embed.embedUrl}
+          title={altText || label || "Video"}
+          style={{ ...fillStyle, border: 0 }}
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
 
   if (url) {
     const isVideo = mediaType === "video";

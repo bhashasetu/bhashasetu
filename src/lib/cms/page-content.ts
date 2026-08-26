@@ -23,6 +23,8 @@ export type PageMediaSlot = {
   slot_key: string;
   media_type: string;
   aspect_ratio: string | null;
+  /** 'archived' marks a slot the page has stopped rendering. */
+  status?: string;
 };
 
 export type PageSection = {

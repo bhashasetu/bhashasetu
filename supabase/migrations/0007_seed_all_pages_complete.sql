@@ -1,3 +1,11 @@
+-- Seeds the remaining static pages.
+--
+-- The page_type values here were 'landing' and 'language', neither of which is
+-- in pages_type_valid ('homepage','about','stories_voices','language_selection',
+-- 'heritage','custom'). This migration therefore aborted, taking every later
+-- migration in a fresh `supabase db reset` with it. 'about' now uses the legal
+-- 'about'; the rest use 'custom'.
+
 -- Comprehensive seed for all CMS pages, sections, slots, and prompts
 
 -- =========================================================================
@@ -10,7 +18,7 @@ VALUES (
   'About Bhasha Setu',
   'Learn about our mission to preserve and celebrate indigenous languages',
   'draft',
-  'landing'
+  'about'
 ) ON CONFLICT (slug) DO NOTHING;
 
 -- =========================================================================
@@ -23,7 +31,7 @@ VALUES (
   'World Robot Olympiad Project',
   'Bridging technology and cultural heritage through robotics education',
   'draft',
-  'landing'
+  'custom'
 ) ON CONFLICT (slug) DO NOTHING;
 
 -- =========================================================================
@@ -36,7 +44,7 @@ VALUES (
   'Warli Language',
   'Explore the Warli language, culture, and traditions',
   'draft',
-  'language'
+  'custom'
 ) ON CONFLICT (slug) DO NOTHING;
 
 WITH warli_page AS (
@@ -81,7 +89,7 @@ VALUES (
   'Katkari Language',
   'Explore the Katkari language, culture, and traditions',
   'draft',
-  'language'
+  'custom'
 ) ON CONFLICT (slug) DO NOTHING;
 
 WITH katkari_page AS (
@@ -126,7 +134,7 @@ VALUES (
   'Our Team',
   'Meet the people dedicated to preserving Warli and Katkari languages',
   'draft',
-  'landing'
+  'custom'
 ) ON CONFLICT (slug) DO NOTHING;
 
 WITH team_page AS (

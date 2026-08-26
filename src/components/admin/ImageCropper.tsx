@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+// Shared with the plain-upload downscaler so both produce the same size.
+import {
+  MAX_OUTPUT_WIDTH,
+  OUTPUT_QUALITY,
+  keepsAlpha,
+} from "@/lib/media/image-output";
 
-const MAX_OUTPUT_WIDTH = 2000;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.1;
 const PREVIEW_WIDTH = 380;
@@ -166,19 +171,30 @@ export function ImageCropper({
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // Zoomed out past cover, part of the frame has no image behind it.
-    ctx.fillStyle = MATTE;
-    ctx.fillRect(0, 0, outW, outH);
+
+    // Zoomed out past cover, part of the frame has no image behind it — and
+    // JPEG has no alpha channel to leave it empty with, so it needs a fill.
+    //
+    // Filling unconditionally, though, painted an opaque white rectangle
+    // across the whole canvas before the image was drawn, and the source's
+    // transparent pixels were composited onto it. A transparent PNG came out
+    // of the cropper with a white background permanently baked in, which is
+    // precisely what uploading a transparent image is meant to avoid. A
+    // format that carries alpha now keeps it, and the empty area stays empty.
+    if (!keepsAlpha(file.type)) {
+      ctx.fillStyle = MATTE;
+      ctx.fillRect(0, 0, outW, outH);
+    }
     ctx.drawImage(imgEl, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
 
-    const isPng = file.type === "image/png";
+    const outputType = keepsAlpha(file.type) ? file.type : "image/jpeg";
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
         onConfirm(new File([blob], file.name, { type: blob.type }));
       },
-      isPng ? "image/png" : "image/jpeg",
-      0.86
+      outputType,
+      OUTPUT_QUALITY
     );
   }
 

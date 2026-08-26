@@ -414,8 +414,13 @@
   color: var(--color-text-light);
 }
 
-/* ===== MEET MY BHASHASETU PANEL ===== */
-.chat-panel {
+/* ===== MEET MY BHASHASETU PANEL =====
+   Named home-* rather than .chat-panel because it is not the chat panel: it is
+   the homepage card that invites you to it. Both files load together on every
+   public page in a production build — the route group shares one stylesheet —
+   so the shorter name silently turned the real /chat panel into this card's
+   two-column grid. */
+.home-chat-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px;
   column-gap: var(--spacing-sm);
@@ -610,7 +615,7 @@
   }
 
   /* Give the copy the full width; the robot sits under it. */
-  .chat-panel {
+  .home-chat-panel {
     grid-template-columns: minmax(0, 1fr);
     row-gap: var(--spacing-sm);
     justify-items: start;
@@ -714,13 +719,15 @@
   max-width: 60%;
 }
 
-/* The vehicle sits to the right of the copy and bleeds off the edge. */
+/* The vehicle sits to the right of the copy, seated on the bottom of the band
+   and running to the screen edge. MOBILE-05 draws it at a little over half the
+   screen width; 44% rendered it noticeably small against the copy. */
 .mhome-hero__media {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 44%;
-  max-width: 240px;
+  width: 54%;
+  max-width: 260px;
 }
 
 /* --- Language chooser --- */
@@ -981,6 +988,37 @@
   margin: 0;
 }
 
+/* The row shares StoryPlayer with the desktop Stories page, so it inherits
+   that component's play button and duration badge. Only the sizing differs,
+   which is what these two rules set — the behaviour is identical. */
+.mhome-story__thumb .story-card__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  padding: 0 0 0 2px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mhome-story__thumb button.story-card__play {
+  cursor: pointer;
+}
+
+.mhome-story__thumb .story-card__play--pending {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mhome-story__thumb .story-card__duration,
 .mhome-story__dur {
   position: absolute;
   right: 5px;
@@ -990,6 +1028,12 @@
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;
+}
+
+.mhome-stories__empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: 0;
 }
 
 /* --- Follow us --- */

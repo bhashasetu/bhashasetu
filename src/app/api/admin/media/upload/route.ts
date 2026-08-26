@@ -3,7 +3,8 @@ import { requireAdmin } from "@/lib/auth/require-admin";
 import { adminCheckFailureResponse, badRequest, serverError } from "@/lib/api/respond";
 import { validateMediaUpload } from "@/lib/media/validate-upload";
 import { bucketForMediaType, buildStoragePath } from "@/lib/media/storage-paths";
-import { conformImageToSlot } from "@/lib/media/conform-image";
+import { conformImage } from "@/lib/media/conform-image";
+import { createAndAttachAsset } from "@/lib/media/attach-asset";
 
 export async function POST(request: Request) {
   const check = await requireAdmin();
@@ -23,20 +24,31 @@ export async function POST(request: Request) {
   }
 
   const { mediaType } = validation;
+
+  // Audio and video no longer come this way. A Vercel serverless function
+  // caps request bodies at 4.5 MB, so a recording posted here was rejected by
+  // the platform before this handler ran; the browser uploads those straight
+  // to storage instead (see /api/admin/media/upload-url).
+  if (mediaType !== "image") {
+    return badRequest(
+      "Recordings are uploaded directly to storage. Reload the Back Office and try again."
+    );
+  }
+
   const bucket = bucketForMediaType(mediaType);
 
-  // When the upload targets a media slot, look the slot up first so the image
-  // can be fitted to the ratio that slot expects.
+  // The slot is looked up to check it accepts this kind of media. Its aspect
+  // ratio no longer changes the stored file — framing happens at render time
+  // around the asset's focal point.
   const slotIdRaw = formData.get("slot_id");
   const slotId = typeof slotIdRaw === "string" && slotIdRaw ? slotIdRaw : null;
 
-  let slot: { id: string; aspect_ratio: string | null; media_type: string } | null =
-    null;
+  let slot: { id: string; media_type: string } | null = null;
 
   if (slotId) {
     const { data, error } = await check.supabase
       .from("media_slots")
-      .select("id, aspect_ratio, media_type")
+      .select("id, media_type")
       .eq("id", slotId)
       .single();
 
@@ -58,31 +70,39 @@ export async function POST(request: Request) {
   }
 
   let body: Buffer = Buffer.from(await file.arrayBuffer());
-  let contentType = file.type;
+  // The validator's type, not the browser's: a browser that reported no type
+  // at all still gets the extension's canonical one.
+  let contentType = validation.mimeType;
   let width: number | null = null;
   let height: number | null = null;
   let adjusted = false;
+  // A photograph covers its frame; a cut-out is shown whole. Detected from the
+  // file's alpha channel, and the editor can change it afterwards.
+  let fit: "cover" | "contain" = "cover";
 
-  // Fit the image to the slot rather than making an editor prepare it by hand.
   if (mediaType === "image") {
     try {
-      const conformed = await conformImageToSlot(
-        body,
-        slot?.aspect_ratio ?? null,
-        file.type
-      );
+      const conformed = await conformImage(body, file.type);
       body = conformed.buffer;
       contentType = conformed.mimeType;
       width = conformed.width || null;
       height = conformed.height || null;
       adjusted = conformed.adjusted;
+      fit = conformed.fit;
     } catch {
       // A source we cannot decode is still worth storing as-is; the editor
       // can replace it. Better than rejecting the upload outright.
     }
   }
 
-  const extension = contentType === "image/png" ? "png" : contentType === "image/jpeg" ? "jpg" : null;
+  // Name the stored object after what the conform step actually produced,
+  // so a WebP is not filed under a .jpg (or the reverse).
+  const EXTENSION_FOR: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+  };
+  const extension = EXTENSION_FOR[contentType] ?? null;
   const storagePath = buildStoragePath(
     mediaType,
     extension ? file.name.replace(/\.[^.]+$/, `.${extension}`) : file.name
@@ -101,95 +121,40 @@ export async function POST(request: Request) {
   const altText = formData.get("alt_text");
   const caption = formData.get("caption");
   const credit = formData.get("credit");
+  const slotIdForAttach = slot?.id ?? null;
+  const shouldPublish = !slot && formData.get("publish") === "1";
 
-  const { data: mediaAsset, error: dbError } = await check.supabase
-    .from("media_assets")
-    .insert({
+  const attached = await createAndAttachAsset(
+    check.supabase,
+    check.user.id,
+    {
       filename: file.name,
-      mime_type: contentType,
-      file_size: body.byteLength,
+      mimeType: contentType,
+      fileSize: body.byteLength,
+      mediaType,
+      storageBucket: bucket,
+      storagePath: storagePath,
+      sourceType: "upload",
       width,
       height,
-      storage_bucket: bucket,
-      storage_path: storagePath,
-      media_type: mediaType,
-      title: typeof title === "string" && title ? title : null,
-      description: typeof description === "string" && description ? description : null,
-      alt_text: typeof altText === "string" && altText ? altText : null,
-      caption: typeof caption === "string" && caption ? caption : null,
-      credit: typeof credit === "string" && credit ? credit : null,
-      status: "draft",
-      created_by: check.user.id,
-    })
-    .select()
-    .single();
+      title: typeof title === "string" ? title : null,
+      description: typeof description === "string" ? description : null,
+      altText: typeof altText === "string" ? altText : null,
+      caption: typeof caption === "string" ? caption : null,
+      credit: typeof credit === "string" ? credit : null,
+      fit,
+    },
+    { slotId: slotIdForAttach, publish: shouldPublish }
+  );
 
-  if (dbError) {
-    // Roll back the uploaded object if the DB insert failed.
+  if (!attached.ok) {
+    // Roll back the uploaded object so a failed insert does not orphan it.
     await check.supabase.storage.from(bucket).remove([storagePath]);
-    return serverError(dbError.message);
-  }
-
-  if (mediaType === "audio") {
-    const { error: audioError } = await check.supabase.from("audio_metadata").insert({
-      media_asset_id: mediaAsset.id,
-      playback_permission: "public",
-    });
-    if (audioError) {
-      return serverError(`Media uploaded but audio_metadata creation failed: ${audioError.message}`);
-    }
-  }
-
-  // Attach the asset to its slot. Without this the upload succeeds but the
-  // slot stays empty, which is what made "upload" look broken.
-  if (slot) {
-    // A slot holds one asset. Uploading a replacement previously left the
-    // old assignment published too, so the slot ended up with several — and
-    // the Back Office (first match) could then disagree with the public page
-    // (newest match) about which image the slot actually shows.
-    const { error: supersedeError } = await check.supabase
-      .from("slot_media_assignments")
-      .update({ status: "archived", updated_by: check.user.id })
-      .eq("slot_id", slot.id)
-      .eq("status", "published");
-
-    if (supersedeError) {
-      return serverError(
-        `Could not replace the slot's existing media: ${supersedeError.message}`
-      );
-    }
-
-    const { error: assignError } = await check.supabase
-      .from("slot_media_assignments")
-      .insert({
-        slot_id: slot.id,
-        media_asset_id: mediaAsset.id,
-        status: "published",
-        created_by: check.user.id,
-      });
-
-    if (assignError) {
-      return serverError(
-        `Media uploaded but could not be attached to the slot: ${assignError.message}`
-      );
-    }
-
-    // A slot asset must be published for the public page to read it
-    // (public_read_published_media gates on status).
-    const { error: publishError } = await check.supabase
-      .from("media_assets")
-      .update({ status: "published", published_at: new Date().toISOString() })
-      .eq("id", mediaAsset.id);
-
-    if (publishError) {
-      return serverError(
-        `Media attached but could not be published: ${publishError.message}`
-      );
-    }
+    return serverError(attached.error);
   }
 
   return NextResponse.json(
-    { data: { ...mediaAsset, width, height }, adjusted },
+    { data: { ...attached.asset, width, height }, adjusted },
     { status: 201 }
   );
 }

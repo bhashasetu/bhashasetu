@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { AdminMediaPreview } from "./AdminMediaPreview";
 import { ImageCropper } from "./ImageCropper";
+import {
+  uploadMediaDirect,
+  attachVideoLink,
+  shouldUploadDirect,
+} from "@/lib/media/direct-upload";
+import { downscaleImage } from "@/lib/media/downscale-image";
 
 type MediaSlot = {
   id: string;
@@ -39,6 +45,8 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [promptText, setPromptText] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [link, setLink] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Staged for the crop control: an image slot with a fixed ratio lets the
@@ -100,8 +108,31 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
     setError(null);
     setNotice(null);
 
+    // A recording cannot be posted to the server route: a Vercel serverless
+    // function rejects request bodies over 4.5 MB before the handler runs, so
+    // this is what made video slots impossible to fill. Those go straight
+    // from the browser to storage.
+    if (shouldUploadDirect(file)) {
+      setNotice("Uploading… large recordings can take a while.");
+      const result = await uploadMediaDirect(file, { slotId: slot.id });
+      if (!result.ok) {
+        setError(result.error);
+        setNotice(null);
+      } else {
+        setNotice("Uploaded and attached to this slot.");
+        onUpdate();
+      }
+      setUploadingFile(false);
+      return;
+    }
+
+    // A slot with no fixed ratio skips the cropper, so the file arrives at
+    // full size and would hit Vercel's 4.5 MB request-body limit. Cropped
+    // files are already within bounds and pass through untouched.
+    const toSend = await downscaleImage(file);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", toSend);
     formData.append("media_type", slot.media_type);
     formData.append("slot_id", slot.id);
 
@@ -129,6 +160,24 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
     } finally {
       setUploadingFile(false);
     }
+  };
+
+  const saveLink = async () => {
+    if (!link.trim()) return;
+    setUploadingFile(true);
+    setError(null);
+    setNotice(null);
+
+    const result = await attachVideoLink(link.trim(), { slotId: slot.id });
+    if (!result.ok) {
+      setError(result.error);
+    } else {
+      setNotice("Video link attached to this slot.");
+      setLink("");
+      setLinkOpen(false);
+      onUpdate();
+    }
+    setUploadingFile(false);
   };
 
   // An image slot with a fixed ratio gets the crop control, so the editor
@@ -233,7 +282,15 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
               <input
                 id="slot-upload"
                 type="file"
-                accept={slot.media_type === "image" ? "image/*" : undefined}
+                accept={
+                  slot.media_type === "image"
+                    ? "image/*"
+                    : slot.media_type === "video"
+                      ? "video/*"
+                      : slot.media_type === "audio"
+                        ? "audio/*"
+                        : undefined
+                }
                 onChange={handleFileSelected}
                 disabled={uploadingFile}
               />
@@ -249,6 +306,53 @@ export function MediaSlotManager({ slot, onUpdate }: { slot: MediaSlot; onUpdate
                     {slot.aspect_ratio} automatically.
                   </p>
                 )
+              )}
+              {slot.media_type === "video" && (
+                <>
+                  <div className="slotmgr__linkrow">
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--ghost"
+                      onClick={() => {
+                        setLinkOpen((o) => !o);
+                        setError(null);
+                        setNotice(null);
+                      }}
+                      aria-expanded={linkOpen}
+                      disabled={uploadingFile}
+                    >
+                      {linkOpen ? "Cancel link" : "Use a video link"}
+                    </button>
+                  </div>
+                  {linkOpen && (
+                    <div className="slotmgr__linkrow">
+                      <label htmlFor="slot-link" className="visually-hidden">
+                        YouTube or Vimeo address
+                      </label>
+                      <input
+                        id="slot-link"
+                        type="url"
+                        inputMode="url"
+                        placeholder="https://www.youtube.com/watch?v=…"
+                        value={link}
+                        onChange={(e) => setLink(e.target.value)}
+                        disabled={uploadingFile}
+                      />
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--primary"
+                        onClick={saveLink}
+                        disabled={uploadingFile || !link.trim()}
+                      >
+                        Attach
+                      </button>
+                    </div>
+                  )}
+                  <p className="hp-row__hint">
+                    Files up to 50 MB upload directly. For a longer video, put
+                    it on YouTube or Vimeo and paste the link.
+                  </p>
+                </>
               )}
               {uploadingFile && <p className="slotmgr__status">Uploading…</p>}
               {notice && <p className="slotmgr__status slotmgr__status--ok">{notice}</p>}

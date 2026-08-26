@@ -26,7 +26,17 @@ export function PageEditForm({
   const [success, setSuccess] = useState(false);
 
   const statusOptions = ["draft", "published", "archived"];
-  const pageTypeOptions = ["homepage", "stories", "heritage", "chat", "landing"];
+  // Must stay in step with the pages_type_valid CHECK constraint (migration
+  // 0004). Three of the values previously offered here — "stories", "chat" and
+  // "landing" — are not legal, so saving with any of them returned a 500.
+  const pageTypeOptions = [
+    "homepage",
+    "about",
+    "stories_voices",
+    "language_selection",
+    "heritage",
+    "custom",
+  ];
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

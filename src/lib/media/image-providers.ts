@@ -36,7 +36,9 @@ class OpenAIImageProvider implements ImageProvider {
         prompt,
         n: 1,
         size: "1024x1024",
-        quality: "hd",
+        // "standard" rather than "hd": roughly half the cost per image, and
+        // nothing in the approved references needs HD (CLAUDE.md section 11).
+        quality: "standard",
       }),
     });
 
@@ -122,23 +124,42 @@ export function getImageProvider(providerName: string): ImageProvider {
   return provider;
 }
 
+/** Environment variable each provider needs, for a useful error message. */
+const PROVIDER_ENV_VAR: Record<string, string> = {
+  openai: "OPENAI_API_KEY",
+  "fal.ai": "FAL_AI_KEY",
+  flux: "FAL_AI_KEY",
+};
+
 /**
- * Resolve the provider actually used for a generation.
+ * Resolve the provider for a generation, or refuse.
  *
- * A slot's preset may name a provider that this deployment has no key for
- * (the Learn card presets ask for fal.ai, but a deployment may only have
- * OPENAI_API_KEY). Rather than failing, fall back to any configured provider
- * so the editor can still generate; the caller records which one ran.
+ * This used to fall back to whichever provider happened to have a key. That
+ * meant a preset labelled fal.ai / flux-pro would quietly run DALL-E 3
+ * instead on a deployment with only OPENAI_API_KEY — a different vendor, at
+ * roughly twice the cost, under a name that said otherwise. Generating an
+ * image costs real money, so the provider that runs has to be the provider
+ * that was asked for.
+ *
+ * MediaSlotManager already disables Generate when the preset's provider has
+ * no key; this is the server agreeing with it, and covers a direct POST.
  */
 export function resolveConfiguredProvider(preferred: string): ImageProvider {
   const wanted = providers[preferred as keyof typeof providers];
-  if (wanted?.isConfigured()) return wanted;
 
-  const fallback = Object.values(providers).find((p) => p.isConfigured());
-  if (fallback) return fallback;
+  if (!wanted) {
+    throw new Error(`Unknown image provider: ${preferred}`);
+  }
+
+  if (wanted.isConfigured()) return wanted;
+
+  const anyConfigured = Object.values(providers).some((p) => p.isConfigured());
+  const envVar = PROVIDER_ENV_VAR[preferred] ?? `the ${preferred} API key`;
 
   throw new Error(
-    "No image generation provider is configured. Set OPENAI_API_KEY or FAL_AI_KEY."
+    anyConfigured
+      ? `This preset uses ${wanted.name}, which is not configured on this deployment. Set ${envVar}, or choose a preset for a provider that is configured.`
+      : "No image generation provider is configured. Set OPENAI_API_KEY or FAL_AI_KEY."
   );
 }
 

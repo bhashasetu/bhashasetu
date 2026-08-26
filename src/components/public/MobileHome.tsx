@@ -1,19 +1,48 @@
 import Link from "next/link";
-import { MediaSlotImage } from "@/components/public/MediaSlotImage";
+import { SlotMedia } from "@/components/public/SlotMedia";
+import { StoryPlayer } from "@/components/public/StoryPlayer";
 import { SocialLinks } from "@/components/public/SocialLinks";
+import type { ResolvedSlotMedia } from "@/lib/media/resolve-slot-urls";
+import { framing } from "@/lib/media/framing";
 import { renderAccented } from "@/lib/content/accent";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** One card in the mobile Stories & Voices row, from a published story. */
+export type MobileStory = {
+  id: string;
+  title: string;
+  languageName: string | null;
+  duration: string | null;
+  thumbnailUrl: string | null;
+  thumbnailFit?: "cover" | "contain";
+  thumbnailPosition?: string;
+  mediaUrl: string | null;
+  mediaSourceUrl: string | null;
+};
 
 /**
  * Mobile home screen, per MOBILE-05-LanguageSelection.PNG.
  *
  * This is a distinct composition, not a reflow of the desktop homepage: it
- * carries its own hero copy, a Today's Word card and a Stories & Voices row.
- * Sections shared with desktop (WRO project, My BhashaSetu) read the same CMS
- * fields so a single edit updates both surfaces.
+ * carries its own hero copy and a Today's Word card. What it does not carry is
+ * its own copies of media that exists elsewhere — the hero image comes from
+ * the same slot the desktop hero uses, and the Stories & Voices row reads the
+ * same published records that drive the /stories page. Both used to be
+ * separate uploads an editor had to keep in step by hand.
  */
-export function MobileHome({ sections }: { sections: any[] }) {
+export function MobileHome({
+  sections,
+  slotMedia,
+  stories,
+}: {
+  sections: any[];
+  /** Slot id -> resolved media, resolved once on the server by the page. */
+  slotMedia: Map<string, ResolvedSlotMedia>;
+  /** Published stories for the row, already ordered and resolved. */
+  stories: MobileStory[];
+}) {
+  const media = (s: any) => (s ? (slotMedia.get(s.id) ?? null) : null);
   const section = (key: string) =>
     sections.find((s: any) => s.section_key === key);
   const content = (s: any, field: string) =>
@@ -26,9 +55,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
   const word = section("todays_word");
   const wro = section("wro_project");
   const chat = section("my_bhasha_setu");
-  const stories = section("stories_voices");
+  const storiesSection = section("stories_voices");
 
-  const heroImage = slot(hero, "mobile_hero_image");
+  // The desktop hero's slot, not a mobile-only copy of it. Both frames are
+  // 4:3, so one upload fills both at their own sizes.
+  const heroImage = slot(section("hero"), "hero_image");
   const wordImage = slot(word, "todays_word_image");
   // Bound once each: guarding on slot(...) then calling it again to read .id
   // means the guard never protects the second call.
@@ -42,8 +73,7 @@ export function MobileHome({ sections }: { sections: any[] }) {
         <section className="mhome-hero">
           <div className="mhome-hero__copy">
             <p className="mhome-hero__greeting">
-              {content(hero, "greeting")}{" "}
-              <span aria-hidden="true">👋</span>
+              {content(hero, "greeting")} <span aria-hidden="true">👋</span>
             </p>
             <h1 className="mhome-hero__heading">
               {renderAccented(content(hero, "heading"))}
@@ -52,11 +82,13 @@ export function MobileHome({ sections }: { sections: any[] }) {
           </div>
           {heroImage && (
             <div className="mhome-hero__media">
-              <MediaSlotImage
-                slotId={heroImage.id}
+              <SlotMedia
+                url={media(heroImage)?.url ?? null}
+                sourceUrl={media(heroImage)?.sourceUrl ?? null}
                 altText="The Bhasha Setu WRO project vehicle"
-                aspectRatio={heroImage.aspect_ratio ?? undefined}
+                aspectRatio={heroImage.aspect_ratio}
                 label="WRO vehicle"
+                {...framing(media(heroImage))}
               />
             </div>
           )}
@@ -92,11 +124,13 @@ export function MobileHome({ sections }: { sections: any[] }) {
               >
                 <div className="mhome-lang__art">
                   {s && (
-                    <MediaSlotImage
-                      slotId={s.id}
+                    <SlotMedia
+                      url={media(s)?.url ?? null}
+                      sourceUrl={media(s)?.sourceUrl ?? null}
                       altText={`${lang.name} artwork`}
-                      aspectRatio={s.aspect_ratio ?? undefined}
+                      aspectRatio={s.aspect_ratio}
                       label={lang.name}
+                      {...framing(media(s))}
                     />
                   )}
                 </div>
@@ -132,11 +166,13 @@ export function MobileHome({ sections }: { sections: any[] }) {
           </div>
           {wordImage && (
             <div className="mhome-word__art">
-              <MediaSlotImage
-                slotId={wordImage.id}
+              <SlotMedia
+                url={media(wordImage)?.url ?? null}
+                sourceUrl={media(wordImage)?.sourceUrl ?? null}
                 altText="Warli artwork"
-                aspectRatio={wordImage.aspect_ratio ?? undefined}
+                aspectRatio={wordImage.aspect_ratio}
                 label="Artwork"
+                {...framing(media(wordImage))}
               />
             </div>
           )}
@@ -154,10 +190,11 @@ export function MobileHome({ sections }: { sections: any[] }) {
           </div>
           <div className="mhome-wro__video">
             {wroVideo && (
-              <MediaSlotImage
-                slotId={wroVideo.id}
+              <SlotMedia
+                url={media(wroVideo)?.url ?? null}
+                sourceUrl={media(wroVideo)?.sourceUrl ?? null}
                 altText="Bhasha Setu WRO Future Innovators video"
-                aspectRatio={wroVideo.aspect_ratio ?? undefined}
+                aspectRatio={wroVideo.aspect_ratio}
                 label="Video"
                 mediaType="video"
               />
@@ -173,11 +210,13 @@ export function MobileHome({ sections }: { sections: any[] }) {
         <section className="mhome-chat">
           <div className="mhome-chat__robot">
             {robot && (
-              <MediaSlotImage
-                slotId={robot.id}
+              <SlotMedia
+                url={media(robot)?.url ?? null}
+                sourceUrl={media(robot)?.sourceUrl ?? null}
                 altText="The Bhasha Setu robot, your learning companion"
-                aspectRatio={robot.aspect_ratio ?? undefined}
+                aspectRatio={robot.aspect_ratio}
                 label="Robot"
+                {...framing(media(robot))}
               />
             )}
           </div>
@@ -194,49 +233,46 @@ export function MobileHome({ sections }: { sections: any[] }) {
         </section>
       )}
 
-      {stories && (
+      {/* The same published records the /stories page shows, in the same
+          order, so an interview published in the Stories module appears here
+          with no second upload and nothing retyped. */}
+      {storiesSection && (
         <section className="mhome-stories">
           <header className="mhome-stories__head">
-            <h2>{content(stories, "heading")}</h2>
+            <h2>{content(storiesSection, "heading")}</h2>
             <Link href="/stories" className="mhome-stories__all">
-              {content(stories, "cta_text")} <span aria-hidden="true">→</span>
+              {content(storiesSection, "cta_text")}{" "}
+              <span aria-hidden="true">→</span>
             </Link>
           </header>
-          <ul className="mhome-stories__row">
-            {[1, 2, 3, 4].map((n) => {
-              const thumb = slot(stories, `story_${n}_thumbnail`);
-              const title = content(stories, `story_${n}_title`);
-              return (
-                <li className="mhome-story" key={n}>
-                  <div className="mhome-story__thumb">
-                    {thumb && (
-                      <MediaSlotImage
-                        slotId={thumb.id}
-                        altText={title || `Story ${n}`}
-                        aspectRatio={thumb.aspect_ratio ?? undefined}
-                        label="Story"
-                        mediaType="image"
-                      />
-                    )}
-                    <span className="mhome-play mhome-play--sm" aria-hidden="true">
-                      ▶
-                    </span>
-                    {content(stories, `story_${n}_duration`) && (
-                      <span className="mhome-story__dur">
-                        {content(stories, `story_${n}_duration`)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mhome-story__title">
-                    {title || "Story coming soon"}
-                  </p>
-                  <p className="mhome-story__lang">
-                    {content(stories, `story_${n}_language`)}
-                  </p>
+          {stories.length > 0 ? (
+            <ul className="mhome-stories__row">
+              {stories.map((story) => (
+                <li className="mhome-story" key={story.id}>
+                  <StoryPlayer
+                    url={story.mediaUrl}
+                    sourceUrl={story.mediaSourceUrl}
+                    posterUrl={story.thumbnailUrl}
+                    title={story.title}
+                    aspectRatio="16:9"
+                    label="Story"
+                    duration={story.duration}
+                    frameClassName="mhome-story__thumb"
+                    posterFit={story.thumbnailFit}
+                    posterPosition={story.thumbnailPosition}
+                  />
+                  <p className="mhome-story__title">{story.title}</p>
+                  {story.languageName && (
+                    <p className="mhome-story__lang">{story.languageName}</p>
+                  )}
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="mhome-stories__empty">
+              No stories have been published yet.
+            </p>
+          )}
         </section>
       )}
 

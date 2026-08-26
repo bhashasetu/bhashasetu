@@ -21,12 +21,24 @@ export async function GET(
 
   const { data: asset, error } = await check.supabase
     .from("media_assets")
-    .select("storage_bucket, storage_path, media_type, status")
+    .select("storage_bucket, storage_path, media_type, status, source_type, source_url")
     .eq("id", id)
     .single();
 
   if (error || !asset) {
     return NextResponse.json({ error: "Media asset not found" }, { status: 404 });
+  }
+
+  // A hosted video (YouTube/Vimeo) has no object to sign.
+  if (asset.source_type === "external" && asset.source_url) {
+    return NextResponse.json({
+      data: {
+        url: null,
+        sourceUrl: asset.source_url,
+        mediaType: asset.media_type,
+        status: asset.status,
+      },
+    });
   }
 
   const { data: signed, error: signError } = await check.supabase.storage
@@ -43,6 +55,7 @@ export async function GET(
   return NextResponse.json({
     data: {
       url: signed.signedUrl,
+      sourceUrl: null,
       mediaType: asset.media_type,
       status: asset.status,
     },

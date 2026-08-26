@@ -10,6 +10,10 @@ export const entryStatusValues = [
   "archived",
 ] as const;
 export const mediaStatusValues = ["draft", "published", "archived"] as const;
+/** Mirrors learning_entries_entry_type_valid (migration 0021). */
+export const entryTypeValues = ["word", "phrase"] as const;
+export const storyStatusValues = ["draft", "published", "archived"] as const;
+export const storyFormatValues = ["interview", "audio", "song"] as const;
 
 export const languageInputSchema = z.object({
   code: z.string().trim().min(1).max(10),
@@ -33,11 +37,97 @@ export const learningEntryInputSchema = z.object({
   transliteration: z.string().trim().max(500).optional().nullable(),
   english_meaning: z.string().trim().min(1).max(500),
   hindi_meaning: z.string().trim().max(500).optional().nullable(),
-  entry_type: z.string().trim().max(50).optional(),
+  entry_type: z.enum(entryTypeValues).optional(),
   region: z.string().trim().max(255).optional().nullable(),
   speaker_notes: z.string().trim().max(5000).optional().nullable(),
   display_order: z.number().int().optional(),
 });
+
+/**
+ * A Stories & Voices record. Mirrors the stories table's CHECK constraints,
+ * so a value the form accepts is a value the database accepts.
+ *
+ * consent_confirmed is not settable here: it is a deliberate act with its own
+ * endpoint, not something a bulk field update can flip on by accident.
+ */
+export const storyInputSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens"),
+  title: z.string().trim().min(1).max(500),
+  format: z.enum(storyFormatValues),
+  speaker_name: z.string().trim().max(255).optional().nullable(),
+  speaker_role: z.string().trim().max(255).optional().nullable(),
+  speaker_place: z.string().trim().max(255).optional().nullable(),
+  summary: z.string().trim().max(5000).optional().nullable(),
+  transcript: z.string().trim().max(100000).optional().nullable(),
+  language_id: z.string().uuid().optional().nullable(),
+  theme: z.string().trim().max(100).optional().nullable(),
+  age_group: z.string().trim().max(50).optional().nullable(),
+  thumbnail_asset_id: z.string().uuid().optional().nullable(),
+  media_asset_id: z.string().uuid().optional().nullable(),
+  duration_seconds: z.number().int().min(0).max(86400).optional().nullable(),
+  recorded_on: z.string().trim().max(20).optional().nullable(),
+  recorded_by: z.string().trim().max(255).optional().nullable(),
+  featured: z.boolean().optional(),
+  display_order: z.number().int().optional(),
+  meta_title: z.string().trim().max(255).optional().nullable(),
+  meta_description: z.string().trim().max(500).optional().nullable(),
+});
+
+export const storyStatusTransitionSchema = z.object({
+  status: z.enum(storyStatusValues),
+  /** Recorded consent from the speaker; publishing is refused without it. */
+  consent_confirmed: z.boolean().optional(),
+});
+
+export const pageTypeValues = [
+  "homepage",
+  "about",
+  "stories_voices",
+  "language_selection",
+  "heritage",
+  "custom",
+] as const;
+
+export const structuredDataValues = [
+  "WebPage",
+  "CollectionPage",
+  "AboutPage",
+  "FAQPage",
+] as const;
+
+/**
+ * Editable page settings, including the SEO/AEO fields (CLAUDE.md section 15).
+ *
+ * The PUT handler previously spread the request body straight into the
+ * update, so an admin request could write any column on the row — id
+ * included. Naming the fields keeps that surface to what the screens
+ * actually edit. `slug` is absent on purpose: it is the key the public
+ * routes and the sitemap look pages up by.
+ */
+export const pageSettingsInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(255),
+    description: z.string().trim().max(5000).nullable(),
+    page_type: z.enum(pageTypeValues),
+    status: z.enum(["draft", "published", "archived"]),
+    meta_title: z.string().trim().max(255).nullable(),
+    meta_description: z.string().trim().max(500).nullable(),
+    meta_keywords: z.string().trim().max(500).nullable(),
+    canonical_url: z.string().trim().url().max(500).nullable(),
+    og_title: z.string().trim().max(255).nullable(),
+    og_description: z.string().trim().max(500).nullable(),
+    og_image_slot_id: z.string().uuid().nullable(),
+    noindex: z.boolean(),
+    page_summary: z.string().trim().max(5000).nullable(),
+    structured_data_type: z.enum(structuredDataValues).nullable(),
+    last_reviewed_at: z.string().trim().max(40).nullable(),
+  })
+  .partial();
 
 export const aliasInputSchema = z.object({
   learning_entry_id: z.string().uuid(),
@@ -74,4 +164,111 @@ export const audioMetadataInputSchema = z.object({
 export const statusTransitionSchema = z.object({
   status: z.enum(entryStatusValues),
   notes: z.string().trim().max(2000).optional(),
+});
+
+// === CHAT HELP CONTENT ===
+// The FAQ set the assistant retrieves from, and the /faq page renders.
+
+export const faqStatusValues = ["draft", "published", "archived"] as const;
+
+export const faqCategoryValues = [
+  "about",
+  "using",
+  "language",
+  "assistant",
+  "practical",
+] as const;
+
+/** The three languages the assistant answers in. */
+export const faqLocaleValues = ["en", "hi", "mr"] as const;
+
+/**
+ * English is required because it is the fallback every other locale falls back
+ * to; Hindi and Marathi may be filled in later, and the reader treats an empty
+ * one as "not translated yet" rather than showing a blank answer.
+ */
+export const faqInputSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens"),
+  category: z.enum(faqCategoryValues),
+  display_order: z.number().int().min(0).max(100000).optional(),
+  question_en: z.string().trim().min(1).max(500),
+  answer_en: z.string().trim().min(1).max(4000),
+  question_hi: z.string().trim().max(500).optional().nullable(),
+  answer_hi: z.string().trim().max(4000).optional().nullable(),
+  question_mr: z.string().trim().max(500).optional().nullable(),
+  answer_mr: z.string().trim().max(4000).optional().nullable(),
+});
+
+export const faqStatusTransitionSchema = z.object({
+  status: z.enum(faqStatusValues),
+});
+
+export const faqAliasInputSchema = z.object({
+  locale: z.enum(faqLocaleValues),
+  alias: z.string().trim().min(1).max(500),
+});
+
+// === CHAT CONFIGURATION ===
+
+/**
+ * Bulbul v3's speakers, as published by Sarvam.
+ *
+ * The list is here rather than as a database CHECK so that following Sarvam's
+ * catalogue is a reviewed code change, not a free-text field an unverified name
+ * can be typed into — a wrong name is a 4xx at the moment a visitor presses
+ * play, which is the worst possible time to find out.
+ *
+ * Order follows Sarvam's own documentation rather than being alphabetised, so
+ * the two lists can be compared line by line when the catalogue changes.
+ */
+export const chatVoiceValues = [
+  "shubh", "aditya", "ritu", "priya", "neha", "rahul", "pooja", "rohan",
+  "simran", "kavya", "amit", "dev", "ishita", "shreya", "ratan", "varun",
+  "manan", "sumit", "roopa", "kabir", "aayan", "ashutosh", "advait", "anand",
+  "tanya", "tarun", "sunny", "mani", "gokul", "vijay", "shruti", "suhani",
+  "mohit", "kavitha", "rehan", "soham", "rupali",
+] as const;
+
+/**
+ * Chat models this build can reach.
+ *
+ * One, and it is the SDK that says so: SarvamModelIds is the single literal
+ * "sarvam-105b". This list previously also offered sarvam-105b-conversations,
+ * read off the models overview page — the chat client has no way to send to it,
+ * so an editor choosing it would have got a failure at the moment a visitor
+ * asked a question. sarvam-m and sarvam-30b are deprecated.
+ */
+export const chatModelValues = ["sarvam-105b"] as const;
+
+export const chatConfigInputSchema = z.object({
+  enabled: z.boolean(),
+  llm_enabled: z.boolean(),
+  /**
+   * Sarvam's model identifier. The empty string is the honest "none chosen"
+   * value the form sends; the PUT handler stores it as NULL.
+   */
+  chat_model: z
+    .union([z.enum(chatModelValues), z.literal("")])
+    .optional()
+    .nullable(),
+  tts_enabled: z.boolean(),
+  tts_voice: z.enum(chatVoiceValues),
+  asr_enabled: z.boolean(),
+  default_locale: z.enum(faqLocaleValues),
+  /**
+   * Tone, and any rules an editor wants added. Bounded because both are
+   * prepended to every billed request — a long persona is a cost on every
+   * message, not a one-off. Neither can remove the fixed rules; see
+   * lib/chat/grounding.ts.
+   */
+  persona: z.string().trim().max(600).optional().nullable(),
+  extra_guidance: z.string().trim().max(1200).optional().nullable(),
+  max_response_words: z.number().int().min(20).max(400),
+  rate_limit_per_session: z.number().int().min(1).max(1000),
+  rate_limit_per_day: z.number().int().min(1).max(100000),
 });

@@ -520,6 +520,7 @@
 .hp-row__control { min-width: 0; }
 
 .hp-row__control input,
+.hp-row__control select,
 .hp-row__control textarea {
   font: inherit;
   font-size: 14px;
@@ -533,6 +534,7 @@
 }
 
 .hp-row__control input:focus,
+.hp-row__control select:focus,
 .hp-row__control textarea:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
@@ -606,7 +608,80 @@
 
 .hp-media:first-child { border-top: none; }
 
+/* Wide enough to click a point on accurately; the picker is a control, not
+   a thumbnail. */
 .hp-media__preview { width: 96px; }
+.hp-media__preview:has(.focal) { width: 200px; }
+
+/* ===== FOCAL POINT PICKER =====
+   Click the part of an image that must stay in shot. Every slot crops around
+   it at render time, so one upload frames correctly on every surface. */
+.focal { display: flex; flex-direction: column; gap: 6px; }
+
+.focal__frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0;
+  padding: 0;
+  border: 1px solid var(--admin-border, #d8dee6);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f2f4f7;
+  cursor: crosshair;
+}
+
+.focal__frame:focus-visible {
+  outline: 2px solid var(--color-accent, #E8A530);
+  outline-offset: 2px;
+}
+
+.focal__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.focal__marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(20, 40, 80, 0.75);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.focal__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.focal__fit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.focal__readout { color: var(--admin-text-light, #6b7686); }
+
+.focal__status { font-weight: 600; }
+.focal__status--ok { color: #2D7D4A; }
+.focal__status--error { color: #B3261E; }
+
+.focal__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--admin-text-light, #6b7686);
+}
 
 .hp-media__body { min-width: 0; }
 
@@ -914,3 +989,915 @@
   gap: var(--spacing-sm);
   margin-top: 4px;
 }
+
+/* ============================================================
+   STORIES & INTERVIEWS (CLAUDE.md section 13, module 7)
+   Reuses the hp-* editor shell; these are the pieces that are
+   specific to story records.
+   ============================================================ */
+
+.admin-shell .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Story media rows mirror .hp-media so a story attachment and a page slot
+   attachment look and behave the same way. */
+.story-media {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.story-media:first-child { border-top: none; }
+
+.story-media__preview { width: 96px; }
+
+.story-media__body { min-width: 0; }
+
+.story-media__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.story-media__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.story-media__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.story-media__hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.story-media__status {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.story-media__status--ok { color: var(--color-success); }
+.story-media__status--error { color: #B42318; }
+
+/* Story list table */
+.story-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.story-table th,
+.story-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text-dark);
+}
+
+.story-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.story-table__thumb {
+  width: 72px;
+}
+
+.story-table__thumb .admin-preview {
+  width: 72px;
+}
+
+.story-table td .admin-pill {
+  margin-left: 6px;
+}
+
+/* Consent and publishing */
+.hp-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  font-size: 13px;
+  color: var(--color-text-dark);
+  cursor: pointer;
+}
+
+.hp-check input {
+  margin-top: 2px;
+}
+
+.story-consent {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.story-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+/* ============================================================
+   VIDEO LINKS (YouTube / Vimeo)
+   Storage caps a file at 50 MB on this plan, so a full-length
+   interview is linked rather than uploaded.
+   ============================================================ */
+
+.story-media__link,
+.slotmgr__linkrow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.story-media__link input[type="url"],
+.slotmgr__linkrow input[type="url"] {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text-dark);
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.story-media__link input[type="url"]:focus-visible,
+.slotmgr__linkrow input[type="url"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* A hosted video has no thumbnail to sign, so the preview says what it is. */
+.admin-preview--link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 16 / 9;
+  color: var(--color-primary);
+  background: var(--color-bg-light);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.admin-preview__linktext {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   WORDS & PHRASES (ADMIN-02)
+   Composed from the existing admin primitives — .admin-card,
+   .admin-btn, .admin-pill, .admin-table, .hp-bar. The only new
+   pattern is the right-hand entry panel, which had no equivalent
+   in the Back Office.
+   ============================================================ */
+
+.wp-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-lg);
+  align-items: start;
+}
+
+/* The panel sits beside the list rather than over it, so an editor can keep
+   scanning the table while reading one entry. */
+@media (min-width: 1400px) {
+  .wp-page--with-panel {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+}
+
+.wp-main { min-width: 0; }
+
+/* ----- summary cards ----- */
+.wp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+@media (max-width: 1100px) {
+  .wp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.wp-stat {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 2px var(--spacing-md);
+  padding: var(--spacing-md);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--color-border);
+}
+
+.wp-stat--words { border-left-color: var(--color-success); }
+.wp-stat--phrases { border-left-color: var(--color-primary); }
+.wp-stat--audio { border-left-color: #7C5CBF; }
+.wp-stat--draft { border-left-color: var(--color-accent); }
+
+.wp-stat__icon {
+  grid-row: 1 / span 3;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  color: #fff;
+}
+
+.wp-stat--words .wp-stat__icon { background: var(--color-success); }
+.wp-stat--phrases .wp-stat__icon { background: var(--color-primary); }
+.wp-stat--audio .wp-stat__icon { background: #7C5CBF; }
+.wp-stat--draft .wp-stat__icon { background: var(--color-accent); }
+
+.wp-stat__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.wp-stat__value {
+  font-family: var(--font-heading, inherit);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-text-dark);
+}
+
+.wp-stat__note {
+  font-size: 11px;
+  color: var(--color-text-light);
+}
+
+/* ----- filter bar ----- */
+.wp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.wp-filters__search {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 260px;
+}
+
+.wp-filters__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-dark);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.wp-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wp-filters__field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.wp-filters__field select {
+  min-width: 150px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-dark);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.wp-filters__field select:disabled {
+  color: var(--color-text-light);
+  background: var(--color-bg-light);
+}
+
+.wp-filters__reset {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.wp-filters__extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.wp-filters input:focus-visible,
+.wp-filters select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* ----- table ----- */
+.wp-tablecard { padding: 0; overflow: hidden; }
+
+.wp-tablecard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wp-tablecard__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* Wide tables scroll inside their card rather than pushing the page. */
+.wp-tablewrap { overflow-x: auto; }
+
+.wp-table { min-width: 1000px; }
+.wp-table th, .wp-table td { padding: 10px 12px; }
+.wp-table td { vertical-align: top; }
+
+.wp-native {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-dark);
+}
+
+.wp-muted {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.wp-lang,
+.wp-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-full);
+}
+
+.wp-flag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8A4B00;
+  background: #FFF1DB;
+  border-radius: var(--radius-full);
+}
+
+.wp-audio-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+  color: #fff;
+  background: var(--color-success);
+  border-radius: var(--radius-full);
+}
+
+.wp-audio-dot--missing {
+  color: var(--color-text-light);
+  background: var(--color-bg-light);
+}
+
+.wp-actions { display: flex; gap: 4px; }
+
+.wp-action {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--color-text-light);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.wp-action:not(.wp-action--danger) { color: var(--color-primary); }
+.wp-action--danger { color: #B42318; }
+.wp-action:hover { background: var(--color-bg-light); text-decoration: none; }
+.wp-action:disabled { opacity: 0.35; cursor: not-allowed; }
+.wp-action--danger:hover:not(:disabled) { background: #FDECEA; }
+
+.wp-action__error {
+  font-size: 11px;
+  color: #B42318;
+}
+
+/* ----- pagination ----- */
+.wp-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.wp-pager__pages,
+.wp-pager__size {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-text-light);
+}
+
+.wp-pager__size a {
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.wp-pager__size a.is-active {
+  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* ----- empty states ----- */
+.wp-empty {
+  font-size: 13px;
+  color: var(--color-text-light);
+  line-height: 1.5;
+}
+
+.wp-empty--table {
+  padding: var(--spacing-2xl) var(--spacing-md);
+  text-align: center;
+}
+
+/* ----- entry panel ----- */
+.wp-panel {
+  position: sticky;
+  top: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--spacing-xl));
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.wp-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wp-panel__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.wp-panel__title h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.wp-panel__translit {
+  font-weight: 500;
+  color: var(--color-text-light);
+}
+
+.wp-panel__close {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-light);
+  text-decoration: none;
+}
+
+.wp-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--spacing-sm) var(--spacing-md) 0;
+}
+
+.wp-tabs {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wp-tab {
+  padding-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+
+.wp-tab.is-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.wp-tab:hover { text-decoration: none; }
+
+.wp-panel__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.wp-panel__section {
+  margin: var(--spacing-md) 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-light);
+}
+
+.wp-panel__section:first-child { margin-top: 0; }
+
+.wp-field { margin-bottom: var(--spacing-md); }
+
+.wp-field__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  margin-bottom: 2px;
+}
+
+.wp-field__value {
+  font-size: 14px;
+  color: var(--color-text-dark);
+}
+
+.wp-note {
+  font-size: 13px;
+  color: var(--color-text-dark);
+  line-height: 1.5;
+}
+
+.wp-warn {
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #8A4B00;
+  background: #FFF1DB;
+  border-radius: var(--radius-md);
+}
+
+.wp-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--color-text-dark);
+}
+
+.wp-list li { margin-bottom: 4px; }
+
+.wp-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wp-history li {
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wp-history li:last-child { border-bottom: none; }
+
+.wp-history__what {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.wp-history__who {
+  font-size: 11px;
+  color: var(--color-text-light);
+}
+
+.wp-history__note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-dark);
+}
+
+.wp-audio {
+  padding: var(--spacing-sm);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-md);
+}
+
+.wp-audio__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-bottom: 6px;
+}
+
+.wp-audio__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  overflow-wrap: anywhere;
+}
+
+.wp-audio__meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--spacing-sm);
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.wp-audio__meta dt { color: var(--color-text-light); font-weight: 600; }
+.wp-audio__meta dd { margin: 0; color: var(--color-text-dark); }
+
+.wp-panel__foot {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Statuses the pill classes did not previously cover. */
+.admin-pill--pending_verification {
+  color: #8A4B00;
+  background: #FFF1DB;
+}
+
+.admin-pill--verified {
+  color: #1B5E3F;
+  background: #DDF3E7;
+}
+
+/* Media Library browser inside MediaPicker. */
+.wp-library {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-md);
+}
+
+.wp-library input[type="search"] {
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.wp-library__list {
+  margin: var(--spacing-sm) 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.wp-library__list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--color-text-dark);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+}
+
+.wp-library__list button:hover { border-color: var(--color-primary); }
+
+.wp-library__name { overflow-wrap: anywhere; }
+
+/* The Audio column's play control. It was a static <span> that looked like a
+   button; it is a real button now, so it needs the affordances of one. */
+.wp-play-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wp-audio-dot--button {
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 120ms ease;
+}
+
+.wp-audio-dot--button:hover:not(:disabled) { background: #24694a; }
+.wp-audio-dot--button:disabled { opacity: 0.6; cursor: progress; }
+.wp-audio-dot--button.is-playing { background: var(--color-primary); }
+.wp-audio-dot--button.is-error { background: #B42318; }
+
+.wp-audio-dot--button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.wp-play-error {
+  max-width: 150px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #B42318;
+}
+
+/* ===== HELP & FAQ =====
+   The answers the assistant gives and the FAQ page shows. */
+
+.admin-table__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--admin-text-light, #6b7686);
+}
+
+.hp-row__hint--warn { color: #B3781A; }
+
+.faq-alias__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.faq-alias__add input[type="text"] { flex: 1 1 240px; }
+
+.faq-alias__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faq-alias__group {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.faq-alias__lang {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--admin-text-light, #6b7686);
+  padding-top: 4px;
+}
+
+.faq-alias__chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.faq-alias__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 10px;
+  border: 1px solid var(--admin-border, #d8dee6);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.faq-alias__chip button {
+  border: 0;
+  background: transparent;
+  color: var(--admin-text-light, #6b7686);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.faq-alias__chip button:hover { color: #B3261E; }
+
+/* ===== ASSISTANT SETTINGS ===== */
+
+.cfg-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cfg-switch input:disabled + span { color: var(--admin-text-light, #6b7686); }
+
+/* The one setting whose consequence reaches outside this screen. */
+.cfg-warning {
+  margin: 0 0 var(--spacing-md, 16px);
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-accent, #E8A530);
+  background: #FDF6E7;
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6B4E12;
+}
+
+.cfg-warning a { color: inherit; }
+
+.cfg-test {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.cfg-test__result {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-word;
+}
+
+.cfg-test__result--ok { color: #2D7D4A; }
+.cfg-test__result--error { color: #B3261E; }

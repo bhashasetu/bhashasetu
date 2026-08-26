@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getSignedSlotMediaUrl } from "@/lib/media/slot-url-generator";
+import { resolveSlotMedia } from "@/lib/media/slot-url-generator";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -14,11 +14,17 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
-  const signedUrl = await getSignedSlotMediaUrl(supabase, slotId);
+  const resolved = await resolveSlotMedia(supabase, slotId);
 
-  if (!signedUrl) {
+  if (!resolved) {
     return NextResponse.json({ data: null }, { status: 200 });
   }
 
-  return NextResponse.json({ data: { url: signedUrl, expiresInSeconds: 3600 } });
+  return NextResponse.json({
+    data: {
+      url: resolved.url,
+      sourceUrl: resolved.sourceUrl,
+      expiresInSeconds: resolved.url ? 3600 : null,
+    },
+  });
 }
