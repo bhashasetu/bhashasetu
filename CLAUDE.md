@@ -717,13 +717,14 @@ Covers:
   
 	●	`src/lib/chat/intent.ts` — how a typed question becomes a term to search for  
 	●	`src/lib/chat/grounding.ts` — what a model is given, and what it may send back  
+	●	`src/lib/chat/spoken-phrases.ts` — the only words a synthetic voice may say  
   
 Rules:  
   
 	●	Run `npm test` before every push.  
 	●	When a bug reaches production, add the real input as a case before fixing it. Most cases in `tests/` are exactly that — what people typed, not what was imagined.  
 	●	Never weaken an assertion to make it pass.  
-	●	Two guarantees must always be asserted: native Warli/Katkari text is never sent to a model, and Back Office tone/extra-rules cannot displace the fixed rules behind "Uses verified content only".  
+	●	Three guarantees must always be asserted: native Warli/Katkari text is never sent to a model; native Warli/Katkari text is never sent to Bulbul, which introduces a recording and never pronounces the word; and Back Office tone/extra-rules cannot displace the fixed rules behind "Uses verified content only".  
 	●	A green `npm test` does not mean the site works. Browser journeys are section 31 and are not in the repo yet.  
   
 See `tests/README.md`.  
