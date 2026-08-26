@@ -436,6 +436,76 @@ function SpeakButton({
  */
 const MAX_SECONDS = 25;
 
+/** What Sarvam's transcription is documented to work best with. */
+const TARGET_RATE = 16000;
+
+/**
+ * The browser's recording, as 16 kHz mono WAV.
+ *
+ * MediaRecorder produces WebM/Opus, and while Sarvam lists WebM as supported,
+ * the only format proven to be accepted by this account is the 16 kHz WAV the
+ * Back Office listening test sends — that one passes while a real spoken
+ * question does not. So the browser now sends exactly what is known to work,
+ * decoded and resampled here rather than hoped about.
+ *
+ * It is better input regardless: the documentation asks for 16 kHz mono, and
+ * this downmixes and resamples rather than shipping whatever the microphone
+ * happened to produce.
+ *
+ * If any of it fails — an old browser, an undecodable blob — the original
+ * recording is sent unchanged, which is no worse than before.
+ */
+async function asWav(recording: Blob): Promise<Blob> {
+  try {
+    const bytes = await recording.arrayBuffer();
+    const decoder = new AudioContext();
+    const decoded = await decoder.decodeAudioData(bytes);
+
+    // Mono, at the rate Sarvam asks for. OfflineAudioContext does the
+    // resampling; doing it by hand would be worse arithmetic than the
+    // browser's.
+    const frames = Math.ceil((decoded.duration * TARGET_RATE) || 0);
+    if (frames <= 0) return recording;
+
+    const offline = new OfflineAudioContext(1, frames, TARGET_RATE);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start();
+    const rendered = await offline.startRendering();
+    void decoder.close();
+
+    const samples = rendered.getChannelData(0);
+    const out = new DataView(new ArrayBuffer(44 + samples.length * 2));
+    const ascii = (at: number, text: string) => {
+      for (let i = 0; i < text.length; i += 1) out.setUint8(at + i, text.charCodeAt(i));
+    };
+
+    ascii(0, "RIFF");
+    out.setUint32(4, 36 + samples.length * 2, true);
+    ascii(8, "WAVE");
+    ascii(12, "fmt ");
+    out.setUint32(16, 16, true);
+    out.setUint16(20, 1, true);              // PCM
+    out.setUint16(22, 1, true);              // mono
+    out.setUint32(24, TARGET_RATE, true);
+    out.setUint32(28, TARGET_RATE * 2, true);
+    out.setUint16(32, 2, true);
+    out.setUint16(34, 16, true);
+    ascii(36, "data");
+    out.setUint32(40, samples.length * 2, true);
+
+    for (let i = 0; i < samples.length; i += 1) {
+      const clamped = Math.max(-1, Math.min(1, samples[i]));
+      out.setInt16(44 + i * 2, clamped * 0x7fff, true);
+    }
+
+    return new Blob([out.buffer], { type: "audio/wav" });
+  } catch {
+    return recording;
+  }
+}
+
 function MicButton({
   locale,
   onTranscript,
@@ -476,7 +546,8 @@ function MicButton({
     setState("working");
     try {
       const form = new FormData();
-      form.append("audio", audio, "question.webm");
+      const name = audio.type.includes("wav") ? "question.wav" : "question.webm";
+      form.append("audio", audio, name);
       form.append("locale", locale);
 
       const res = await fetch("/api/public/chat/transcribe", {
@@ -527,7 +598,8 @@ function MicButton({
           setState("idle");
           return;
         }
-        void send(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+        const recorded = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        void asWav(recorded).then(send);
       });
 
       recorderRef.current = rec;
