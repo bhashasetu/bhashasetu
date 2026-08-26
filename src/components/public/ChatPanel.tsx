@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { ChatReply } from "@/app/api/public/chat/route";
 import type { ChatMode } from "@/lib/chat/intent";
+import type { SpokenPhrase } from "@/lib/chat/spoken-phrases";
 
 /**
  * The two things My BhashaSetu does, said out loud.
@@ -168,16 +169,57 @@ function MatchNote({ matchedOn }: { matchedOn: string }) {
   );
 }
 
+/**
+ * The two halves of a spoken answer.
+ *
+ * A recording arriving on its own is a clip, not a conversation — the listener
+ * hears an unfamiliar word with nothing around it. So the assistant introduces
+ * it first, in a language it can actually pronounce ("In Warli, 'I'm fine' is
+ * said like this"), and the community recording says the word itself.
+ *
+ * The split is not presentational. Bulbul has no Warli or Katkari phonology:
+ * asked to say a Warli word it applies Hindi phonetics and produces something
+ * confidently wrong that a learner cannot detect. So the synthetic voice gets
+ * the sentence and never the word, and the two arrive as two clips, back to
+ * back, because to a listener they are one answer.
+ */
 function WordCard({
   reply,
+  locale,
   autoPlay,
+  speakIntro,
+  onFinished,
 }: {
   reply: Extract<ChatReply, { kind: "verified_words" }>;
+  locale: string;
   /** Play the first recording without waiting to be asked. Spoken turns only. */
   autoPlay?: boolean;
+  /** Whether the assistant may introduce it first. Off if TTS is switched off. */
+  speakIntro?: boolean;
+  /** The spoken answer has finished, so the visitor's turn begins again. */
+  onFinished?: () => void;
 }) {
+  const lead = reply.entries[0];
+  const leadHasAudio = Boolean(lead?.audio_asset_id);
+  const wantsIntro = Boolean(autoPlay && speakIntro && lead);
+  // Bumped when the introduction ends, which starts the recording. A counter
+  // rather than a flag so a card that is asked about twice plays twice.
+  const [afterIntro, setAfterIntro] = useState(0);
+
   return (
     <div className="chat-card">
+      {wantsIntro && (
+        <SpokenLine
+          entryId={lead.id}
+          locale={locale}
+          onEnded={() => {
+            // Hand over to the recording; or, if this entry has none yet, the
+            // sentence was the whole answer and the turn is already over.
+            if (leadHasAudio) setAfterIntro((n) => n + 1);
+            else onFinished?.();
+          }}
+        />
+      )}
       {/* The sentence, when a model wrote one. The table below it is the
           answer either way — this only introduces it. */}
       {reply.prose && <p className="chat-card__prose">{reply.prose}</p>}
@@ -216,7 +258,16 @@ function WordCard({
                     label={entry.native_text}
                     // Only the first row: a card of eight words must not become
                     // eight recordings playing over each other.
-                    autoPlay={autoPlay && index === 0}
+                    autoPlay={
+                      index !== 0
+                        ? 0
+                        : wantsIntro
+                          ? afterIntro
+                          : autoPlay
+                            ? 1
+                            : 0
+                    }
+                    onAutoEnded={index === 0 ? onFinished : undefined}
                   />
                 ) : (
                   // Honest rather than a synthetic voice: no recording has been
@@ -246,13 +297,22 @@ function AudioButton({
   entryId,
   label,
   autoPlay,
+  onAutoEnded,
 }: {
   assetId: string;
   /** The entry the recording is linked to; the media route checks that link. */
   entryId: string;
   label: string;
-  /** Start on arrival, for a question that was asked out loud. */
-  autoPlay?: boolean;
+  /**
+   * Start without being asked, for a question that was asked out loud.
+   *
+   * A counter rather than a flag, because the recording no longer starts on
+   * arrival: it starts when the assistant's introduction finishes, which is a
+   * later moment and can happen more than once.
+   */
+  autoPlay?: number;
+  /** The recording finished playing by itself, so the visitor's turn resumes. */
+  onAutoEnded?: () => void;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "failed">(
     "idle"
@@ -276,8 +336,8 @@ function AudioButton({
    * If it refuses anyway, play() lands in "failed" and the button is still
    * there to press — nothing is lost but the convenience.
    *
-   * Once, on arrival: play is hoisted, and re-running on every render would
-   * restart the clip under the listener.
+   * Only when the counter moves: play is hoisted, and re-running on every
+   * render would restart the clip under the listener.
    */
   useEffect(() => {
     if (autoPlay) void play(true);
@@ -316,13 +376,23 @@ function AudioButton({
         return;
       }
       const audio = new Audio(url);
-      audio.addEventListener("ended", () => setState("idle"));
-      audio.addEventListener("error", () => setState(auto ? "idle" : "failed"));
+      audio.addEventListener("ended", () => {
+        setState("idle");
+        // Only an answer that played itself hands the turn back. A visitor who
+        // pressed play is reading, not talking, and must not have the
+        // microphone opened on them.
+        if (auto) onAutoEnded?.();
+      });
+      audio.addEventListener("error", () => {
+        setState(auto ? "idle" : "failed");
+        if (auto) onAutoEnded?.();
+      });
       audioRef.current = audio;
       await audio.play();
       setState("playing");
     } catch {
       setState(auto ? "idle" : "failed");
+      if (auto) onAutoEnded?.();
     }
   }
 
@@ -343,6 +413,87 @@ function AudioButton({
 }
 
 /**
+ * One line, in the assistant's own voice, played as soon as it arrives.
+ *
+ * It renders nothing. There is no button, because there is nothing here a
+ * visitor would ever press twice: this is the assistant taking its turn in a
+ * spoken conversation — the sentence in front of a recording, or the sentence
+ * that says the collection has nothing.
+ *
+ * What it sends is an entry id or the key of a fixed phrase, never text. The
+ * server owns every word a synthetic voice says, which is what keeps a Warli or
+ * Katkari word out of Bulbul's mouth no matter what a caller does.
+ *
+ * `onEnded` fires exactly once, however this goes — played through, refused by
+ * the browser, or never produced at all. Whatever comes next in the
+ * conversation must not depend on the audio having worked.
+ */
+function SpokenLine({
+  entryId,
+  phrase,
+  locale,
+  onEnded,
+}: {
+  entryId?: string;
+  phrase?: SpokenPhrase;
+  locale: string;
+  onEnded: () => void;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const endedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function finish() {
+      if (cancelled || endedRef.current) return;
+      endedRef.current = true;
+      onEnded();
+    }
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/public/chat/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            entryId ? { entry_id: entryId, locale } : { phrase, locale }
+          ),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+
+        // No audio — the daily limit, a provider outage, TTS switched off
+        // between the page loading and now. The card is still on screen and the
+        // recording still plays; the introduction is the part that is missing.
+        if (!res.ok || !body.data?.audio) {
+          finish();
+          return;
+        }
+
+        const audio = new Audio(`data:audio/wav;base64,${body.data.audio}`);
+        audio.addEventListener("ended", finish);
+        audio.addEventListener("error", finish);
+        audioRef.current = audio;
+        await audio.play();
+      } catch {
+        finish();
+      }
+    })();
+
+    return () => {
+      // Scrolled away or the panel closed: stop talking.
+      cancelled = true;
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
+
+/**
  * Reads an approved answer aloud.
  *
  * Sends the FAQ's id, never the text: the speak route looks the answer up
@@ -354,11 +505,14 @@ function SpeakButton({
   faqId,
   locale,
   autoPlay,
+  onAutoEnded,
 }: {
   faqId: string;
   locale: string;
   /** Start on arrival, for a question that was asked out loud. */
   autoPlay?: boolean;
+  /** The answer finished playing by itself, so the visitor's turn resumes. */
+  onAutoEnded?: () => void;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "failed">(
     "idle"
@@ -398,13 +552,20 @@ function SpeakButton({
         return;
       }
       const audio = new Audio(`data:audio/wav;base64,${body.data.audio}`);
-      audio.addEventListener("ended", () => setState("idle"));
-      audio.addEventListener("error", () => setState(auto ? "idle" : "failed"));
+      audio.addEventListener("ended", () => {
+        setState("idle");
+        if (auto) onAutoEnded?.();
+      });
+      audio.addEventListener("error", () => {
+        setState(auto ? "idle" : "failed");
+        if (auto) onAutoEnded?.();
+      });
       audioRef.current = audio;
       await audio.play();
       setState("playing");
     } catch {
       setState(auto ? "idle" : "failed");
+      if (auto) onAutoEnded?.();
     }
   }
 
@@ -802,8 +963,21 @@ export function ChatPanel({
   );
   const [sending, setSending] = useState(false);
   const current = MODULES.find((m) => m.id === mode) ?? MODULES[0];
-  // Incremented when the greeting ends, which opens the microphone.
-  const [listenAfterGreeting, setListenAfterGreeting] = useState(0);
+  /**
+   * Whose turn it is.
+   *
+   * Incremented every time the assistant finishes speaking — the greeting, the
+   * introduction and its recording, an answer read aloud, or the sentence that
+   * says the collection has nothing. Each bump opens the microphone, so a
+   * conversation continues without the visitor hunting for a button between
+   * every turn.
+   *
+   * It ends by itself: a recording with nothing in it, or a transcription that
+   * comes back empty, reports a failure instead of an answer, and a failure
+   * never bumps this. Someone who walks away is not listened to indefinitely.
+   */
+  const [listenNow, setListenNow] = useState(0);
+  const takeTurn = () => setListenNow((n) => n + 1);
   const starters = suggestions[mode] ?? [];
   const threadRef = useRef<HTMLDivElement | null>(null);
   // Ids only need to be unique within this thread, so a counter serves and
@@ -957,7 +1131,16 @@ export function ChatPanel({
 
           const reply = m.reply;
           if (reply.kind === "verified_words") {
-            return <WordCard reply={reply} key={m.id} autoPlay={m.spoken} />;
+            return (
+              <WordCard
+                reply={reply}
+                key={m.id}
+                locale={locale}
+                autoPlay={m.spoken}
+                speakIntro={canSpeak}
+                onFinished={takeTurn}
+              />
+            );
           }
           if (reply.kind === "help_answer") {
             return (
@@ -969,6 +1152,7 @@ export function ChatPanel({
                       faqId={reply.faqId}
                       locale={locale}
                       autoPlay={m.spoken}
+                      onAutoEnded={takeTurn}
                     />
                   )}
                   {!reply.translated && (
@@ -1008,6 +1192,17 @@ export function ChatPanel({
           }
           return (
             <div className="chat-bubble chat-bubble--assistant" key={m.id}>
+              {/* A spoken question gets a spoken answer even when the answer is
+                  "we do not have that". Silence after someone has just spoken
+                  is indistinguishable from the assistant being broken — and it
+                  ends a conversation that was meant to continue. */}
+              {m.spoken && canSpeak && (
+                <SpokenLine
+                  phrase="not_found"
+                  locale={locale}
+                  onEnded={takeTurn}
+                />
+              )}
               {reply.intent === "word_lookup" ? (
                 <p>
                   <strong>{reply.term}</strong> is not in our collection yet. We
@@ -1056,7 +1251,7 @@ export function ChatPanel({
           <CallButton
             locale={locale}
             disabled={sending}
-            onGreeted={() => setListenAfterGreeting((n) => n + 1)}
+            onGreeted={takeTurn}
             onFailure={(message) =>
               setMessages((m) => [
                 ...m,
@@ -1069,7 +1264,7 @@ export function ChatPanel({
           <MicButton
             locale={locale}
             disabled={sending}
-            startNow={listenAfterGreeting}
+            startNow={listenNow}
             onFailure={(message) =>
               setMessages((m) => [
                 ...m,
