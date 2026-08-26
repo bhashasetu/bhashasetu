@@ -594,21 +594,49 @@ function MicButton({
       rec.addEventListener("stop", () => {
         stream.getTracks().forEach((t) => t.stop());
         recorderRef.current = null;
-        if (chunks.length === 0) {
+
+        // Every ending says something. An empty recording used to return to
+        // idle in silence, which looks exactly like the microphone doing
+        // nothing at all — and is what a muted or unavailable input produces.
+        const recorded = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        if (recorded.size === 0) {
           setState("idle");
+          onFailure(
+            "Nothing was recorded. Check that this page is allowed to use your microphone, then try again."
+          );
           return;
         }
-        const recorded = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-        void asWav(recorded).then(send);
+
+        void asWav(recorded)
+          .then(send)
+          .catch(() => {
+            setState("idle");
+            onFailure("That recording could not be prepared. Please type your question.");
+          });
+      });
+
+      // The recorder itself can fail after starting — a device unplugged, an
+      // input taken by another tab. It used to fail into silence.
+      rec.addEventListener("error", () => {
+        setState("idle");
+        onFailure("The recording stopped unexpectedly. Please try again.");
       });
 
       recorderRef.current = rec;
       rec.start();
       setState("recording");
       stopTimerRef.current = setTimeout(stop, MAX_SECONDS * 1000);
-    } catch {
-      // Refused permission, or no microphone. Either way the text box works.
+    } catch (err) {
+      // Refused permission, or no microphone. Either way the text box works —
+      // but which of the two it was is worth saying, because one of them the
+      // visitor can fix.
       setState("denied");
+      const name = err instanceof Error ? err.name : "";
+      onFailure(
+        name === "NotAllowedError" || name === "SecurityError"
+          ? "This page is not allowed to use your microphone. Allow it in your browser, then reload."
+          : "No microphone was found. You can type your question instead."
+      );
     }
   }
 
