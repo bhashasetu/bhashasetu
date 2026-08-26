@@ -54,6 +54,134 @@ function forPattern(value: string): string {
   return value.replace(/[%_]/g, (c) => `\\${c}`);
 }
 
+/**
+ * Contractions, written out.
+ *
+ * A visitor typed "I want to say I am hungry in Warli" and was told we had
+ * nothing, while the collection held that phrase with the meaning recorded as
+ * "im hungry". Neither spelling is wrong; they are the same sentence. Every
+ * comparison below runs both sides through the same expansion so the two meet.
+ *
+ * The apostrophe is stripped before this runs, so one entry covers all three
+ * spellings a person might use: I'm, Im, and I am.
+ *
+ * Ambiguous ones are left alone on purpose. "ill" is a word, "were" is a word,
+ * and expanding them would match sentences that mean something else.
+ */
+const CONTRACTIONS: [RegExp, string][] = [
+  [/\bim\b/g, "i am"],
+  [/\bive\b/g, "i have"],
+  [/\byoure\b/g, "you are"],
+  [/\byouve\b/g, "you have"],
+  [/\bhes\b/g, "he is"],
+  [/\bshes\b/g, "she is"],
+  [/\bits\b/g, "it is"],
+  [/\bthats\b/g, "that is"],
+  [/\bwhats\b/g, "what is"],
+  [/\bhows\b/g, "how is"],
+  [/\bwheres\b/g, "where is"],
+  [/\blets\b/g, "let us"],
+  [/\bdont\b/g, "do not"],
+  [/\bdoesnt\b/g, "does not"],
+  [/\bdidnt\b/g, "did not"],
+  [/\bisnt\b/g, "is not"],
+  [/\barent\b/g, "are not"],
+  [/\bwasnt\b/g, "was not"],
+  [/\bhavent\b/g, "have not"],
+  [/\bhasnt\b/g, "has not"],
+  [/\bwont\b/g, "will not"],
+  // All three forms land on the same one, so any of them matches any other.
+  [/\bcannot\b/g, "can not"],
+  [/\bcant\b/g, "can not"],
+];
+
+/**
+ * One spelling of a phrase, for comparing against another.
+ *
+ * Lower case, no punctuation, no apostrophes, contractions written out, single
+ * spaces. Devanagari passes through untouched — the Unicode letter class keeps
+ * it, and none of the rules above apply to it.
+ *
+ * This is only ever used to compare, never to display or to store.
+ */
+export function canonical(value: string): string {
+  let text = value
+    .toLowerCase()
+    // Curly quotes are what phones type, and the apostrophe has to be gone
+    // before the contractions above can be recognised at all.
+    .replace(/[‘’‛′`]/g, "'")
+    .replace(/'/g, "")
+    /**
+     * Everything that is not part of a word becomes a gap, which also handles
+     * the full stop in "in Warli." and the Devanagari danda.
+     *
+     * \p{M} is not optional. Devanagari vowel signs and the virama are marks,
+     * not letters, so a class of letters and digits alone quietly reduced
+     * "मैं ठीक हूँ" to "म ठ क ह" — every matra stripped, and Hindi matching
+     * broken in a way that still looked like text.
+     */
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, " ");
+
+  for (const [from, to] of CONTRACTIONS) text = text.replace(from, to);
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Editorial notes that are not content.
+ *
+ * A transliteration recorded as "(same)" — because the native text is already
+ * in Latin letters — would otherwise match every question containing the word
+ * "same". Anything wholly in brackets is a note to another editor, and these
+ * few bare words are the placeholders that turn up in practice.
+ */
+const PLACEHOLDERS = new Set(["same", "na", "n a", "none", "tbd", "unknown"]);
+
+function isContent(original: string, canonicalised: string): boolean {
+  if (canonicalised.length < 4) return false;
+  if (/^\(.*\)$/.test(original.trim())) return false;
+  return !PLACEHOLDERS.has(canonicalised);
+}
+
+/**
+ * Does the question contain one of our phrases?
+ *
+ * Pure, and separated from the query above so it can be tested against the
+ * sentences people actually type without a database. Both sides are
+ * canonicalised, and the comparison is on whole words: padding each side with
+ * a space stops "at" from matching inside "water".
+ *
+ * The longest match wins — a question containing both "tree" and "where is the
+ * school" is about the school — and every entry that matched on that same
+ * longest phrase comes back, so a phrase held in both languages returns both.
+ */
+export function containedMatch(rows: EntryRow[], question: string): EntryRow[] {
+  const asked = ` ${canonical(question)} `;
+  if (asked.trim().length === 0) return [];
+
+  const hits = rows
+    .map((row) => {
+      const longest = [
+        row.english_meaning,
+        row.hindi_meaning,
+        row.native_text,
+        row.transliteration,
+      ]
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        .map((v) => ({ original: v, text: canonical(v) }))
+        .filter((v) => isContent(v.original, v.text))
+        .filter((v) => asked.includes(` ${v.text} `))
+        .sort((a, b) => b.text.length - a.text.length)[0];
+
+      return longest ? { row, length: longest.text.length } : null;
+    })
+    .filter((hit): hit is { row: EntryRow; length: number } => hit !== null)
+    .sort((a, b) => b.length - a.length);
+
+  if (hits.length === 0) return [];
+  const best = hits[0].length;
+  return hits.filter((h) => h.length === best).map((h) => h.row);
+}
+
 function forOr(value: string): string {
   return value.replace(/[(),*]/g, " ").trim();
 }
@@ -140,36 +268,14 @@ export async function searchEntries(
    * text or transliteration appears inside what was asked. "Say how are you in
    * Warli" contains "how are you", and that is the answer.
    *
-   * The longest match wins: a question containing both "tree" and "where is
-   * the school" is about the school. Anything under four characters is skipped,
-   * because two-letter meanings match almost any sentence by accident.
+   * Both sides are canonicalised first, which is what makes "I am hungry" find
+   * a phrase whose meaning an editor recorded as "im hungry". See
+   * containedMatch above for the rest.
    */
   {
-    const asked = ` ${(fullQuestion ?? term).toLowerCase()} `;
     const { data } = await scoped(base());
-    const all = rows(data);
-
-    const hits = all
-      .map((row) => {
-        const candidates = [row.english_meaning, row.native_text, row.transliteration]
-          .filter((v): v is string => typeof v === "string" && v.trim().length >= 4)
-          .map((v) => v.trim().toLowerCase())
-          .filter((v) => asked.includes(v));
-        const longest = candidates.sort((a, b) => b.length - a.length)[0];
-        return longest ? { row, length: longest.length } : null;
-      })
-      .filter((hit): hit is { row: EntryRow; length: number } => hit !== null)
-      .sort((a, b) => b.length - a.length);
-
-    if (hits.length) {
-      // Only entries matched on the same, longest phrase: one question is
-      // asking about one thing, in both languages if we have it in both.
-      const best = hits[0].length;
-      return {
-        data: hits.filter((h) => h.length === best).map((h) => h.row),
-        matchedOn: "contained",
-      };
-    }
+    const found = containedMatch(rows(data), fullQuestion ?? term);
+    if (found.length) return { data: found, matchedOn: "contained" };
   }
 
   // 8. Nothing. Said plainly, never filled in by a model.

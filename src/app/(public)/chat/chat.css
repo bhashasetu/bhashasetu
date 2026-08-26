@@ -230,6 +230,30 @@
   color: var(--color-text-light);
 }
 
+/* Which of the two languages this row is. Small, but never absent. */
+.chat-words__lang {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+/* Asked for one language, answered in the other. */
+.chat-card__mismatch {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: #FFF7E6;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  color: #7A4E00;
+}
+
 .chat-words__audio { width: 44px; text-align: right; }
 
 .chat-words__play {

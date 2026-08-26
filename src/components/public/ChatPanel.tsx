@@ -220,6 +220,18 @@ function WordCard({
           }}
         />
       )}
+      {/* Asked for one language, found the other. Said in a sentence rather
+          than left to a badge, because someone who asked for Warli and reads
+          a Katkari phrase without noticing has been taught the wrong thing. */}
+      {reply.otherLanguage && reply.askedLanguage && (
+        <p className="chat-card__mismatch">
+          We have not collected this in {reply.askedLanguage} yet. Here it is in{" "}
+          {[...new Set(reply.entries.map((e) => e.language).filter(Boolean))].join(
+            " and "
+          ) || "another language"}
+          .
+        </p>
+      )}
       {/* The sentence, when a model wrote one. The table below it is the
           answer either way — this only introduces it. */}
       {reply.prose && <p className="chat-card__prose">{reply.prose}</p>}
@@ -242,6 +254,12 @@ function WordCard({
                   <span className="chat-words__translit">
                     {entry.transliteration}
                   </span>
+                )}
+                {/* Which language this is, on every row. A card can hold both,
+                    and a reader must never have to guess which one they are
+                    looking at. */}
+                {entry.language && (
+                  <span className="chat-words__lang">{entry.language}</span>
                 )}
               </td>
               <td>

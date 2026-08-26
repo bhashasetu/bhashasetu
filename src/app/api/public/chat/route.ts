@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { routeIntent, isGreeting, type ChatMode } from "@/lib/chat/intent";
+import {
+  routeIntent,
+  isGreeting,
+  namedLanguage,
+  type ChatMode,
+} from "@/lib/chat/intent";
 import { matchFaq, recordUnanswered } from "@/lib/chat/faq-match";
 import { getPublicChatConfig } from "@/lib/chat/config";
 import { answerFromFaqs, phrase } from "@/lib/chat/sarvam";
@@ -42,6 +47,15 @@ export type ChatReply =
       matchedOn: string;
       /** The sentence around the card. Absent when no model was involved. */
       prose?: string;
+      /**
+       * The language the question asked for, when it named one — and whether
+       * what came back is in a different one.
+       *
+       * Someone who asks for Warli and is handed a Katkari phrase with nothing
+       * said about it has been misinformed, and a learner cannot catch it.
+       */
+      askedLanguage?: string;
+      otherLanguage?: boolean;
       entries: {
         id: string;
         native_text: string;
@@ -50,6 +64,8 @@ export type ChatReply =
         hindi_meaning: string | null;
         entry_type: string;
         audio_asset_id: string | null;
+        /** Which language this is. Named on the card, never inferred by a reader. */
+        language: string | null;
       }[];
     }
   | {
@@ -73,6 +89,22 @@ export type ChatReply =
 
 /** Bounded so a long paste cannot become a long, expensive query. */
 const MAX_MESSAGE = 500;
+
+/**
+ * Language id to name, for the entries that were found.
+ *
+ * One query. The card names the language of every row it shows, so this is no
+ * longer only for the model's benefit.
+ */
+async function languageNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entries: { language_id: string | null }[]
+): Promise<Map<string, string>> {
+  const ids = [...new Set(entries.map((e) => e.language_id).filter(Boolean))] as string[];
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("languages").select("id, name").in("id", ids);
+  return new Map((data ?? []).map((l) => [l.id as string, l.name as string]));
+}
 
 /**
  * How much of the conversation travels with each question.
@@ -119,6 +151,8 @@ async function sentenceAround(options: {
   question: string;
   history: { role: "user" | "assistant"; content: string }[];
   entries?: Awaited<ReturnType<typeof searchEntries>>["data"];
+  /** Language id to name, so the sentence can say "in Katkari". */
+  names?: Map<string, string>;
   faq?: { question: string; answer: string };
 }): Promise<string | undefined> {
   const model = options.config.chatModel?.trim();
@@ -128,17 +162,13 @@ async function sentenceAround(options: {
   if (options.mode === "learn") {
     if (!options.entries?.length) return undefined;
     // Language names, so the sentence can say "in Katkari" without the model
-    // having to infer it from an id.
-    const ids = [
-      ...new Set(options.entries.map((e) => e.language_id).filter(Boolean)),
-    ] as string[];
-    const { data: langs } = ids.length
-      ? await options.supabase.from("languages").select("id, name").in("id", ids)
-      : { data: [] };
-    const names = new Map<string, string>(
-      (langs ?? []).map((l) => [l.id as string, l.name as string])
+    // having to infer it from an id. Looked up once by the caller, which needs
+    // them for the card anyway.
+    grounding = groundEntries(
+      options.entries,
+      options.names ?? new Map(),
+      options.locale
     );
-    grounding = groundEntries(options.entries, names, options.locale);
   } else {
     if (!options.faq) return undefined;
     grounding = groundFaq(options.faq.question, options.faq.answer);
@@ -268,6 +298,28 @@ export async function POST(request: Request) {
     }
 
     const audio = await pronunciationAudioIds(supabase, result.data);
+    const names = await languageNames(supabase, result.data);
+
+    /**
+     * Asked for one language, found another.
+     *
+     * "I want to say I am hungry in Warli" is answered from the collection,
+     * and the collection has that phrase in Katkari only. Showing it silently
+     * would teach someone a Katkari phrase as Warli, which is the exact kind of
+     * confident wrongness this project exists to avoid (CLAUDE.md section 25).
+     *
+     * So the entries in the language that was asked for come first, and if
+     * there are none, the card says so in a sentence rather than leaving the
+     * reader to notice a badge.
+     */
+    const asked = namedLanguage(raw);
+    const isAsked = (row: { language_id: string | null }) => {
+      const name = row.language_id ? names.get(row.language_id) : null;
+      return !!asked && !!name && name.toLowerCase().includes(asked);
+    };
+    const ordered = asked
+      ? [...result.data].sort((a, b) => Number(isAsked(b)) - Number(isAsked(a)))
+      : result.data;
 
     return NextResponse.json({
       data: {
@@ -281,10 +333,17 @@ export async function POST(request: Request) {
           locale,
           question: raw,
           history,
-          entries: result.data,
+          entries: ordered,
+          names,
         }),
         matchedOn: result.matchedOn ?? "partial",
-        entries: result.data.slice(0, 8).map((e) => ({
+        ...(asked
+          ? {
+              askedLanguage: asked[0].toUpperCase() + asked.slice(1),
+              otherLanguage: !result.data.some(isAsked),
+            }
+          : {}),
+        entries: ordered.slice(0, 8).map((e) => ({
           id: e.id,
           native_text: e.native_text,
           transliteration: e.transliteration,
@@ -292,6 +351,7 @@ export async function POST(request: Request) {
           hindi_meaning: e.hindi_meaning,
           entry_type: e.entry_type,
           audio_asset_id: audio[e.id] ?? null,
+          language: e.language_id ? (names.get(e.language_id) ?? null) : null,
         })),
       } satisfies ChatReply,
     });
