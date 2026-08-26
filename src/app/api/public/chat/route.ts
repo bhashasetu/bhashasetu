@@ -233,6 +233,31 @@ export async function POST(request: Request) {
       if (isGreeting(raw)) {
         return NextResponse.json({ data: { kind: "greeting" } satisfies ChatReply });
       }
+
+      /**
+       * The module is a hint, not a wall.
+       *
+       * Someone in Learn who asks "What is Bhasha Setu?" was getting "that is
+       * not in our collection yet" — technically true, since it is not a Warli
+       * phrase, and useless. The collection has already had its say by this
+       * point, so trying the published answers costs one query and can only
+       * turn a dead end into an answer. It never runs the other way round:
+       * nothing in Help reaches the language collection.
+       */
+      const crossed = await matchFaq(supabase, raw, locale);
+      if (crossed) {
+        return NextResponse.json({
+          data: {
+            kind: "help_answer",
+            intent: "platform_help",
+            question: crossed.question,
+            answer: crossed.answer,
+            translated: crossed.translated,
+            faqId: crossed.faq.id,
+          } satisfies ChatReply,
+        });
+      }
+
       await recordUnanswered(supabase, raw, locale);
       return NextResponse.json({
         data: { kind: "no_result", intent: "word_lookup", term } satisfies ChatReply,
