@@ -709,6 +709,25 @@ Expected E2E:
 	●	test missing media  
 	●	verify responsive behavior  
   
+**31a. Code Tests — `npm test`**  
+  
+`tests/` holds Node's own test runner against the pure functions that decide what My BhashaSetu says. No browser, no database, no network, no extra dependency, under a second.  
+  
+Covers:  
+  
+	●	`src/lib/chat/intent.ts` — how a typed question becomes a term to search for  
+	●	`src/lib/chat/grounding.ts` — what a model is given, and what it may send back  
+  
+Rules:  
+  
+	●	Run `npm test` before every push.  
+	●	When a bug reaches production, add the real input as a case before fixing it. Most cases in `tests/` are exactly that — what people typed, not what was imagined.  
+	●	Never weaken an assertion to make it pass.  
+	●	Two guarantees must always be asserted: native Warli/Katkari text is never sent to a model, and Back Office tone/extra-rules cannot displace the fixed rules behind "Uses verified content only".  
+	●	A green `npm test` does not mean the site works. Browser journeys are section 31 and are not in the repo yet.  
+  
+See `tests/README.md`.  
+  
 **32. Completion Checks**  
   
 Before marking a task complete:  
@@ -716,6 +735,7 @@ Before marking a task complete:
 	●	TypeScript typecheck passes  
 	●	lint passes  
 	●	production build passes  
+	●	`npm test` passes  
 	●	relevant tests pass  
 	●	no browser console errors  
 	●	no exposed secrets  

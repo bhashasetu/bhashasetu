@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { adminCheckFailureResponse, badRequest } from "@/lib/api/respond";
-import { ping } from "@/lib/chat/sarvam";
+import { ping, speak } from "@/lib/chat/sarvam";
 import { isSarvamConfigured } from "@/lib/chat/config";
 import { chatModelValues } from "@/lib/validation/schemas";
 
@@ -24,6 +24,32 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
+
+  /**
+   * The voice half, which had no way of being tested at all.
+   *
+   * A visitor pressing the microphone and getting nothing gives an editor
+   * nowhere to look: the provider's real complaint never reaches a screen. One
+   * short Bulbul call proves the key, the account and the voice, and shows
+   * Sarvam's own error verbatim when it does not.
+   *
+   * It exercises text-to-speech rather than speech-to-text because the second
+   * needs an audio file, and both fail the same way when the key or the
+   * account is the problem — which is the common case.
+   */
+  if (body?.kind === "voice") {
+    const started = Date.now();
+    const voice = typeof body?.voice === "string" ? body.voice : "priya";
+    const result = await speak({ text: "Namaste.", voice, locale: "en" });
+    const ms = Date.now() - started;
+
+    return NextResponse.json({
+      data: result.ok
+        ? { ok: true, reply: `Bulbul returned ${result.value.length} bytes of audio`, ms }
+        : { ok: false, status: result.status, detail: result.detail || "No detail returned.", ms },
+    });
+  }
+
   const model = typeof body?.model === "string" ? body.model.trim() : "";
   if (!model) return badRequest("Choose a model first, then test.");
   // Not merely validation: each model has its own endpoint, so one outside this
