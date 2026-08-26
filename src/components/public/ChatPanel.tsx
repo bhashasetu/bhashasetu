@@ -574,8 +574,11 @@ export function ChatPanel({
 }: {
   enabled: boolean;
   defaultLocale: string;
-  /** Published starting points, per module. */
-  suggestions: { learn: string[]; help: string[] };
+  /** Published starting points, per module: what to show, and what to ask. */
+  suggestions: {
+    learn: { label: string; query: string }[];
+    help: { label: string; query: string }[];
+  };
   /** Whether spoken answers are switched on in the Back Office. */
   canSpeak: boolean;
   /** Whether spoken questions are switched on in the Back Office. */
@@ -706,9 +709,12 @@ export function ChatPanel({
       {messages.length === 0 && starters.length > 0 && (
         <ul className="chat-suggestions">
           {starters.map((s) => (
-            <li key={s}>
-              <button type="button" onClick={() => send(s)}>
-                {s}
+            <li key={s.label}>
+              {/* The label is prose for the reader; the query is the term the
+                  collection actually stores. Sending the label would mean
+                  parsing it back apart on the server. */}
+              <button type="button" onClick={() => void send(s.query)}>
+                {s.label}
               </button>
             </li>
           ))}
