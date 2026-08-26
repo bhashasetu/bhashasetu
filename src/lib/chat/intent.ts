@@ -42,10 +42,17 @@ const LANGUAGE_MENTIONS = [
   "varli",
   "katkari",
   "kathkari",
+  // Devanagari, in the spellings that actually turn up. वार्ली came out of a
+  // real transcription and was not in this list, so a question that named the
+  // language read as if it had not.
   "वारली",
   "वारलि",
+  "वार्ली",
+  "वार्लि",
   "कातकरी",
   "कातकरि",
+  "काटकरी",
+  "कात्कारी",
 ];
 
 /**

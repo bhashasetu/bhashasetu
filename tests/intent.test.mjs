@@ -73,6 +73,14 @@ test("the module decides the route, not the wording", () => {
   }
 });
 
+test("the language is recognised however it is spelled", () => {
+  // वार्ली came back from a real transcription and was not in the list, so a
+  // question that named the language read as though it had not.
+  assert.equal(learn("how are you in वार्ली").intent, "word_lookup");
+  assert.equal(learn("तांदूळ वार्ली").term, "तांदूळ");
+  assert.equal(learn("rice in warli").term, "rice");
+});
+
 test("with no module chosen, the old inference still stands", () => {
   assert.equal(routeIntent("how do you say rice in warli").intent, "word_lookup");
   assert.equal(routeIntent("is it free").intent, "platform_help");

@@ -270,9 +270,21 @@ export async function transcribe(options: {
         file: options.audio,
         model: "saaras:v3",
         mode: "transcribe",
-        // The visitor has already chosen a language in the panel. Saying so
-        // beats auto-detection on a three-second clip.
-        language_code: bcp47(options.locale),
+        /**
+         * Auto-detect, rather than the language chip.
+         *
+         * The chip was used here, on the reasoning that the visitor had
+         * already told us their language. They had not: the chip says which
+         * language they want ANSWERS in, not which one they are speaking. A
+         * visitor reading Hindi asked a question in English, Sarvam was told
+         * the audio was Hindi, and it wrote English words in Devanagari —
+         * "से हाउ आर यू इन वार्ली" — which then searched the collection and
+         * of course found nothing.
+         *
+         * Detection is what the endpoint is for, and it returns what it heard
+         * so the caller can see it.
+         */
+        language_code: "unknown",
       },
       { timeoutInSeconds: TRANSCRIBE_TIMEOUT_SECONDS }
     );
