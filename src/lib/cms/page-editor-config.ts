@@ -32,6 +32,17 @@ export const SURFACE_BY_PAGE: Record<string, Record<string, Surface>> = {
     // Stories module, not from this screen.
     stories_voices: "Mobile",
   },
+  "language-explorer": {
+    // One section, two artworks: a wide band behind the desktop title and a
+    // card beside the mobile one. The labels below say which is which.
+    hero: "Both",
+    search: "Both",
+    discover: "Both",
+    suggest: "Both",
+    // The desktop band and the mobile robot card make the same promise in
+    // different words, so both sets of copy live in this one section.
+    trust: "Both",
+  },
   "stories-voices": {
     hero: "Both",
     community_interviews: "Both",
@@ -104,6 +115,22 @@ const FIELD_LABELS: Record<string, string> = {
   student_photo_2: "Field photo 2",
   student_photo_3: "Field photo 3",
   student_photo_4: "Field photo 4",
+
+  // Language Explorer
+  hero_band: "Hero artwork — desktop band",
+  hero_card: "Hero artwork — mobile card",
+  placeholder: "Search box placeholder",
+  hint: "Hint under the search box",
+  examples: "Example searches (comma separated)",
+  searches_heading: "Featured Searches heading",
+  featured_searches: "Featured searches (comma separated)",
+  categories_heading: "Explore categories heading",
+  categories_blurb: "Explore categories subtitle",
+  body: "Body text",
+  note: "Small print",
+  cta_href: "Call-to-action destination",
+  mobile_body: "Body text (mobile card)",
+  robot: "Bhasha Setu robot (mobile card)",
 };
 
 export function labelFor(key: string): string {
@@ -125,6 +152,16 @@ const FIELD_ORDER = [
   "subtitle",
   "mobile_subtitle",
   "description",
+  "body",
+  "mobile_body",
+  "placeholder",
+  "hint",
+  "examples",
+  "searches_heading",
+  "featured_searches",
+  "categories_heading",
+  "categories_blurb",
+  "note",
   "quote",
   "quote_text",
   "quote_attribution",
@@ -144,7 +181,14 @@ export function isLongField(key: string): boolean {
     key === "description" ||
     key.endsWith("_description") ||
     key === "quote" ||
-    key === "quote_text"
+    key === "quote_text" ||
+    key === "body" ||
+    key === "mobile_body" ||
+    key === "note" ||
+    // Comma-separated lists get room to breathe rather than a one-line input
+    // that hides everything past the third term.
+    key === "examples" ||
+    key === "featured_searches"
   );
 }
 

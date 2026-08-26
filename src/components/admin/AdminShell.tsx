@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/categories", label: "Categories", icon: "tag" },
   { href: "/admin/learning-entries", label: "Words & Phrases", icon: "chat" },
   { href: "/admin/homepage", label: "Homepage Content", icon: "home" },
+  { href: "/admin/language-explorer", label: "Language Explorer", icon: "globe" },
   { href: "/admin/stories", label: "Stories & Voices", icon: "mic" },
   { href: "/admin/faqs", label: "Help & FAQ", icon: "chat" },
   { href: "/admin/chat", label: "My BhashaSetu", icon: "chat" },
