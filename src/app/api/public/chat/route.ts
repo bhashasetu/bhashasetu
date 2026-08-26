@@ -213,7 +213,7 @@ export async function POST(request: Request) {
   // already told us more than this query could, and one who chose Help is not
   // asking about a word at all — running it there would be a wasted round trip
   // on every message.
-  const asTerm = mode ? null : await searchEntries(supabase, null, raw);
+  const asTerm = mode ? null : await searchEntries(supabase, null, raw, raw);
   const routed = routeIntent(raw, {
     mode,
     mentionsKnownEntry:
@@ -223,8 +223,11 @@ export async function POST(request: Request) {
   if (routed.intent === "word_lookup") {
     const term = routed.term?.trim() || raw;
     // Reuse the result we already have when the message was the term itself.
+    // raw travels with the term so the last step can scan the question itself.
     const result =
-      asTerm && term === raw ? asTerm : await searchEntries(supabase, null, term);
+      asTerm && term === raw
+        ? asTerm
+        : await searchEntries(supabase, null, term, raw);
 
     if (result.data.length === 0) {
       // Asked only now that the collection has had its say: "good morning" is a

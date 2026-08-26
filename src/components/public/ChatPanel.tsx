@@ -158,6 +158,7 @@ function MatchNote({ matchedOn }: { matchedOn: string }) {
     hindi_meaning: "Matched the Hindi meaning",
     transliteration: "Matched the transliteration",
     partial: "Closest match in the collection",
+    contained: "Found this phrase in your question",
   };
   return (
     <p className="chat-card__source">

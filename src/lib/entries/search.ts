@@ -21,7 +21,9 @@ export type EntryMatch =
   | "english_meaning"
   | "hindi_meaning"
   | "transliteration"
-  | "partial";
+  | "partial"
+  /** The question contained one of our phrases, rather than being one. */
+  | "contained";
 
 export type EntryRow = {
   id: string;
@@ -59,7 +61,15 @@ function forOr(value: string): string {
 export async function searchEntries(
   supabase: SupabaseClient,
   languageId: string | null,
-  q: string
+  q: string,
+  /**
+   * The whole question, before anything was stripped out of it.
+   *
+   * Only the containment step uses it, and only that step can: every other
+   * step needs the reduced term. Scanning the reduction would be pointless —
+   * the reduction is the thing that failed.
+   */
+  fullQuestion?: string
 ): Promise<SearchResult> {
   const term = q.trim();
   if (!term) return { data: [], matchedOn: null };
@@ -118,7 +128,51 @@ export async function searchEntries(
     }
   }
 
-  // 7. Nothing. Said plainly, never filled in by a model.
+  /**
+   * 7. The other direction: does the question contain one of our phrases?
+   *
+   * Every step above takes the question, reduces it to a term, and looks that
+   * term up. When the reduction fails — an unusual phrasing, a transcription
+   * that came back in the wrong script — the phrase can be sitting in the
+   * collection and still be missed, because nothing ever compares the two.
+   *
+   * This scans the published entries and keeps the ones whose meaning, native
+   * text or transliteration appears inside what was asked. "Say how are you in
+   * Warli" contains "how are you", and that is the answer.
+   *
+   * The longest match wins: a question containing both "tree" and "where is
+   * the school" is about the school. Anything under four characters is skipped,
+   * because two-letter meanings match almost any sentence by accident.
+   */
+  {
+    const asked = ` ${(fullQuestion ?? term).toLowerCase()} `;
+    const { data } = await scoped(base());
+    const all = rows(data);
+
+    const hits = all
+      .map((row) => {
+        const candidates = [row.english_meaning, row.native_text, row.transliteration]
+          .filter((v): v is string => typeof v === "string" && v.trim().length >= 4)
+          .map((v) => v.trim().toLowerCase())
+          .filter((v) => asked.includes(v));
+        const longest = candidates.sort((a, b) => b.length - a.length)[0];
+        return longest ? { row, length: longest.length } : null;
+      })
+      .filter((hit): hit is { row: EntryRow; length: number } => hit !== null)
+      .sort((a, b) => b.length - a.length);
+
+    if (hits.length) {
+      // Only entries matched on the same, longest phrase: one question is
+      // asking about one thing, in both languages if we have it in both.
+      const best = hits[0].length;
+      return {
+        data: hits.filter((h) => h.length === best).map((h) => h.row),
+        matchedOn: "contained",
+      };
+    }
+  }
+
+  // 8. Nothing. Said plainly, never filled in by a model.
   return { data: [], matchedOn: null };
 }
 
