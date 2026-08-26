@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ChatReply } from "@/app/api/public/chat/route";
 import type { ChatMode } from "@/lib/chat/intent";
 import type { SpokenPhrase } from "@/lib/chat/spoken-phrases";
+import { ring, type Ringing } from "@/lib/chat/ringtone";
 
 /**
  * The two things My BhashaSetu does, said out loud.
@@ -687,12 +688,21 @@ async function asWav(recording: Blob): Promise<Blob> {
 }
 
 /**
+ * Long enough to be a ring and not a click.
+ *
+ * Two bursts and the start of the rest. The greeting usually arrives during
+ * this, so the ring costs nothing — it is the wait, rather than something
+ * added in front of it.
+ */
+const MIN_RING_MS = 1100;
+
+/**
  * Starting a spoken conversation.
  *
- * The assistant says hello and asks what the visitor wants to learn, and then
- * the microphone opens by itself — so the visitor's next move is to speak, not
- * to find another button. Greeting and listening are one action, because to the
- * person using it they are one action.
+ * It rings, the assistant says hello and asks what the visitor wants to learn,
+ * and then the microphone opens by itself — so the visitor's next move is to
+ * speak, not to find another button. One press, one action, because to the
+ * person using it it is one action: making a call.
  *
  * The greeting is named by key, never sent as text: the server owns the words.
  * See lib/chat/spoken-phrases.ts for why that rule is not relaxed.
@@ -708,18 +718,37 @@ function CallButton({
   onFailure: (message: string) => void;
   disabled: boolean;
 }) {
-  const [state, setState] = useState<"idle" | "calling">("idle");
+  const [state, setState] = useState<"idle" | "ringing" | "speaking">("idle");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ringRef = useRef<Ringing | null>(null);
 
+  // A ring still going after the panel has gone would be a tone with no way to
+  // stop it, which is worse than no ring at all.
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
       audioRef.current = null;
+      ringRef.current?.stop();
+      ringRef.current = null;
     };
   }, []);
 
   async function call() {
-    setState("calling");
+    setState("ringing");
+    const ringing = ring();
+    ringRef.current = ringing;
+    const began = Date.now();
+
+    /** Stop, but never sooner than a ring takes to sound like one. */
+    async function hangUpRing() {
+      const heard = Date.now() - began;
+      if (heard < MIN_RING_MS) {
+        await new Promise((r) => setTimeout(r, MIN_RING_MS - heard));
+      }
+      ringing.stop();
+      ringRef.current = null;
+    }
+
     try {
       const res = await fetch("/api/public/chat/speak", {
         method: "POST",
@@ -728,12 +757,16 @@ function CallButton({
       });
       const body = await res.json().catch(() => ({}));
 
+      // The ring stops whatever happened next — including nothing.
+      await hangUpRing();
+
       if (!res.ok || !body.data?.audio) {
         setState("idle");
         onFailure(body.error ?? "The greeting could not be played. You can type instead.");
         return;
       }
 
+      setState("speaking");
       const audio = new Audio(`data:audio/wav;base64,${body.data.audio}`);
       audioRef.current = audio;
       // The turn passes to the visitor the moment the question ends.
@@ -747,20 +780,26 @@ function CallButton({
       });
       await audio.play();
     } catch {
+      ringing.stop();
+      ringRef.current = null;
       setState("idle");
       onFailure("The greeting could not be played. You can type instead.");
     }
   }
 
+  const busy = state !== "idle";
+
   return (
     <button
       type="button"
-      className={state === "calling" ? "chat-call chat-call--live" : "chat-call"}
+      className={busy ? "chat-call chat-call--live" : "chat-call"}
       onClick={() => void call()}
-      disabled={disabled || state === "calling"}
+      disabled={disabled || busy}
     >
       <span aria-hidden="true">🔊</span>
-      <span>{state === "calling" ? "Speaking…" : "Call"}</span>
+      <span>
+        {state === "ringing" ? "Calling…" : state === "speaking" ? "Speaking…" : "Call"}
+      </span>
     </button>
   );
 }
