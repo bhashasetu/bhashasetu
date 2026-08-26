@@ -229,11 +229,12 @@ Public pages must gracefully handle missing media.
   
 AI image generation is a Back Office Media capability.  
   
-Approved providers may include:  
+Approved providers, as built (section 19a):  
   
-	●	fal.ai  
-	●	FLUX models through fal.ai  
-	●	OpenAI image generation where justified  
+	●	fal.ai — `flux`, `flux-pro`  
+	●	OpenAI — `dall-e-3`, where justified  
+  
+A request names its provider. There is no silent fallback between them.  
   
 Cost discipline:  
   
@@ -467,12 +468,47 @@ Never place private API keys in browser/client code.
 	●	Vercel Environment Variables: store keys used by Next.js server routes/functions.  
 	●	Avoid duplicating secrets across environments without a clear reason.  
   
-The Back Office Configuration screen may show:  
+Presence may be shown; the value never may:  
   
+	●	Sarvam AI: Configured / Not configured  
 	●	OpenAI: Configured / Not configured  
 	●	fal.ai: Configured / Not configured  
   
 Never display secret values.  
+  
+A boolean per provider, checked on the server, is the only thing that crosses the wire. A client component reading `process.env.OPENAI_API_KEY` sees `undefined` and reports "not configured" however the deployment is set up — that bug has happened here once already.  
+  
+**19a. Providers**  
+  
+Every third party this project actually calls, what it is used for, and the key it needs. Nothing else is wired up. Adding a provider means adding it here first.  
+  
+**Supabase** — `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`  
+  
+	●	PostgreSQL, authentication, Storage  
+	●	The anon key is public by design and safe in the browser; the service role key is server-only and bypasses RLS  
+  
+**Sarvam AI** — `SARVAM_API_KEY`, server-only, through the official `sarvamai` SDK  
+  
+	●	Chat sentences: `sarvam-105b` — the only model id the client accepts  
+	●	Text to speech: `bulbul:v3`  
+	●	Speech to text: `saaras:v3`, transcribe mode, language auto-detected  
+	●	The one provider for anything spoken or written by a model. It is never asked what a Warli or Katkari word is, and is never handed one to pronounce (sections 17, 18, 25)  
+	●	Each of the three is switched off until an editor turns it on in `/admin/chat`  
+  
+**OpenAI** — `OPENAI_API_KEY`, server-only  
+  
+	●	Image generation only: `dall-e-3`  
+	●	Not used for chat, and must not be. Sarvam is the text and voice provider  
+  
+**fal.ai** — `FAL_AI_KEY`, server-only  
+  
+	●	Image generation: `flux`, `flux-pro`  
+  
+**YouTube / Vimeo** — no key  
+  
+	●	Embedded external video only, as media assets with a source URL. Nothing is uploaded to them  
+  
+Image generation never falls back silently from one vendor to the other: a request names its provider and fails honestly if that provider has no key. Two vendors' output is not interchangeable, and quietly substituting one is a different image at a different price.  
   
 **20. Back Office Configuration**  
   
@@ -542,8 +578,11 @@ Primary stack:
 	●	Lucide or approved icon library  
 	●	Playwright  
 	●	Three.js / React Three Fiber / Drei when 3D begins  
-	●	OpenAI for approved LLM/image use  
+	●	Sarvam AI, through the `sarvamai` SDK, for chat, speech-to-text and text-to-speech  
+	●	OpenAI for approved image generation  
 	●	fal.ai / FLUX for approved image generation  
+  
+Providers, keys and model ids are listed in section 19a. That list is the record of what is wired up; this one is the record of what is allowed.  
   
 Do not add overlapping frameworks or libraries without justification.  
   
