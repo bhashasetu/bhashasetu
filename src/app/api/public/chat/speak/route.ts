@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { speak } from "@/lib/chat/sarvam";
 import { getPublicChatConfig } from "@/lib/chat/config";
 import { faqInLocale, isFaqLocale, FAQ_COLUMNS, type FaqRow } from "@/lib/faq/queries";
+import { isSpokenPhrase, spokenPhrase } from "@/lib/chat/spoken-phrases";
 
 /**
  * Read one published help answer aloud.
@@ -35,15 +36,45 @@ export async function POST(request: Request) {
   const faqId = typeof body?.faq_id === "string" ? body.faq_id : "";
   const requested = typeof body?.locale === "string" ? body.locale : undefined;
 
-  if (!faqId) {
-    return NextResponse.json({ error: "Missing faq_id" }, { status: 400 });
-  }
-
   const locale = isFaqLocale(requested)
     ? requested
     : isFaqLocale(config.defaultLocale)
       ? config.defaultLocale
       : "en";
+
+  /**
+   * A fixed phrase, named by key.
+   *
+   * Same principle as a FAQ id and the same guarantee: the caller says which
+   * sentence, the server says what the words are. Nothing a visitor types and
+   * no Warli or Katkari word can reach Bulbul through here.
+   */
+  if (isSpokenPhrase(body?.phrase)) {
+    const { data: allowed } = await supabase.rpc("chat_claim_call", { kind: "tts" });
+    if (allowed !== true) {
+      return NextResponse.json(
+        { error: "Today's spoken-answer limit has been reached." },
+        { status: 429 }
+      );
+    }
+
+    const result = await speak({
+      text: spokenPhrase(body.phrase, locale),
+      voice: config.ttsVoice,
+      locale,
+    });
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: "The spoken answer could not be produced." },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ data: { audio: result.value } });
+  }
+
+  if (!faqId) {
+    return NextResponse.json({ error: "Missing faq_id" }, { status: 400 });
+  }
 
   // Published only: RLS enforces it, and asking for a draft simply finds
   // nothing rather than leaking unreviewed copy through the speaker.

@@ -279,6 +279,44 @@
   font-size: var(--font-size-sm);
 }
 
+/* The invitation to start talking. It blinks because it is the one control on
+   this panel a visitor is meant to notice first, and stops the moment it is
+   pressed — a thing that keeps blinking while it works is just noise. */
+.chat-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border: 1px solid var(--color-success, #2D7D4A);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-white);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-success, #2D7D4A);
+  cursor: pointer;
+  animation: chat-call-blink 1.8s ease-in-out infinite;
+}
+
+.chat-call:hover { border-color: var(--color-accent); }
+
+.chat-call--live,
+.chat-call:disabled {
+  animation: none;
+  opacity: 0.75;
+  cursor: default;
+}
+
+@keyframes chat-call-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45, 125, 74, 0.45); }
+  50%      { box-shadow: 0 0 0 6px rgba(45, 125, 74, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-call { animation: none; }
+}
+
 .chat-mic {
   width: 40px;
   height: 40px;
