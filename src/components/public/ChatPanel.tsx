@@ -6,6 +6,7 @@ import type { ChatReply } from "@/app/api/public/chat/route";
 import type { ChatMode } from "@/lib/chat/intent";
 import type { SpokenPhrase } from "@/lib/chat/spoken-phrases";
 import { ring, type Ringing } from "@/lib/chat/ringtone";
+import { listenForEndOfTurn, type Listening } from "@/lib/chat/listening";
 
 /**
  * The two things My BhashaSetu does, said out loud.
@@ -834,12 +835,24 @@ function MicButton({
   >("idle");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listeningRef = useRef<Listening | null>(null);
+  /**
+   * Nothing was ever heard, so there is nothing to transcribe.
+   *
+   * Set before the recorder is stopped and read in its stop handler, which is
+   * the only place that knows the recording has actually finished. Without it
+   * eight seconds of silence would be uploaded, billed, and answered with "your
+   * question could not be turned into text" — true, and useless.
+   */
+  const heardNothingRef = useRef(false);
 
   // A recorder still holding the microphone after the panel has gone is a
   // browser tab with a live "recording" indicator and no way to stop it.
   useEffect(() => {
     return () => {
       if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+      listeningRef.current?.stop();
+      listeningRef.current = null;
       const rec = recorderRef.current;
       if (rec && rec.state !== "inactive") rec.stop();
       rec?.stream.getTracks().forEach((t) => t.stop());
@@ -878,6 +891,8 @@ function MicButton({
 
   function stop() {
     if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+    listeningRef.current?.stop();
+    listeningRef.current = null;
     const rec = recorderRef.current;
     if (rec && rec.state !== "inactive") rec.stop();
   }
@@ -905,6 +920,20 @@ function MicButton({
       rec.addEventListener("stop", () => {
         stream.getTracks().forEach((t) => t.stop());
         recorderRef.current = null;
+        listeningRef.current?.stop();
+        listeningRef.current = null;
+
+        // Heard nothing at all. Said plainly, and nothing sent: silence costs
+        // a billed call and comes back as "that could not be transcribed",
+        // which tells the visitor nothing about what to do differently.
+        if (heardNothingRef.current) {
+          heardNothingRef.current = false;
+          setState("idle");
+          onFailure(
+            "I did not hear anything. Check your microphone, then press it and speak."
+          );
+          return;
+        }
 
         // Every ending says something. An empty recording used to return to
         // idle in silence, which looks exactly like the microphone doing
@@ -936,6 +965,29 @@ function MicButton({
       recorderRef.current = rec;
       rec.start();
       setState("recording");
+
+      /**
+       * The turn ends when the talking does.
+       *
+       * This is what makes a spoken conversation work at all. Before it, the
+       * microphone opened after the greeting and stayed open: the visitor
+       * answered, and nothing happened, because the only things that ended a
+       * recording were pressing the button again and the timeout below. It
+       * looked exactly like the assistant refusing to reply.
+       */
+      heardNothingRef.current = false;
+      listeningRef.current = listenForEndOfTurn(
+        stream,
+        () => stop(),
+        () => {
+          heardNothingRef.current = true;
+          stop();
+        }
+      );
+
+      // The backstop, for a room too noisy for the level to ever fall: Sarvam's
+      // REST transcription is for clips under thirty seconds, and a microphone
+      // left running by accident is both a bill and a thing nobody expects.
       stopTimerRef.current = setTimeout(stop, MAX_SECONDS * 1000);
     } catch (err) {
       // Refused permission, or no microphone. Either way the text box works —
