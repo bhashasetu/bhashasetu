@@ -83,7 +83,14 @@ const QUICK_ACTIONS = [
 
 type Message =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "assistant"; reply: ChatReply }
+  /**
+   * `spoken` marks a turn that began at the microphone.
+   *
+   * A spoken question gets a spoken answer: the stored recording plays by
+   * itself rather than waiting for a second press. A typed one never does —
+   * audio starting on its own in a quiet room is a good way to lose a reader.
+   */
+  | { id: string; role: "assistant"; reply: ChatReply; spoken?: boolean }
   | { id: string; role: "error"; text: string };
 
 const LOCALES = [
@@ -162,8 +169,11 @@ function MatchNote({ matchedOn }: { matchedOn: string }) {
 
 function WordCard({
   reply,
+  autoPlay,
 }: {
   reply: Extract<ChatReply, { kind: "verified_words" }>;
+  /** Play the first recording without waiting to be asked. Spoken turns only. */
+  autoPlay?: boolean;
 }) {
   return (
     <div className="chat-card">
@@ -181,7 +191,7 @@ function WordCard({
           </tr>
         </thead>
         <tbody>
-          {reply.entries.map((entry) => (
+          {reply.entries.map((entry, index) => (
             <tr key={entry.id}>
               <td>
                 <span className="chat-words__native">{entry.native_text}</span>
@@ -203,6 +213,9 @@ function WordCard({
                     assetId={entry.audio_asset_id}
                     entryId={entry.id}
                     label={entry.native_text}
+                    // Only the first row: a card of eight words must not become
+                    // eight recordings playing over each other.
+                    autoPlay={autoPlay && index === 0}
                   />
                 ) : (
                   // Honest rather than a synthetic voice: no recording has been
@@ -231,11 +244,14 @@ function AudioButton({
   assetId,
   entryId,
   label,
+  autoPlay,
 }: {
   assetId: string;
   /** The entry the recording is linked to; the media route checks that link. */
   entryId: string;
   label: string;
+  /** Start on arrival, for a question that was asked out loud. */
+  autoPlay?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "failed">(
     "idle"
@@ -251,7 +267,31 @@ function AudioButton({
     };
   }, []);
 
-  async function play() {
+  /**
+   * A spoken question answers itself.
+   *
+   * Allowed to start without a press because the visitor just pressed the
+   * microphone, and a browser counts that as the gesture that permits audio.
+   * If it refuses anyway, play() lands in "failed" and the button is still
+   * there to press — nothing is lost but the convenience.
+   *
+   * Once, on arrival: play is hoisted, and re-running on every render would
+   * restart the clip under the listener.
+   */
+  useEffect(() => {
+    if (autoPlay) void play(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay]);
+
+  /**
+   * @param auto Started by itself, after a spoken question.
+   *
+   * The distinction matters on failure. A browser that refuses to play without
+   * a press, or a device with no audio output, must leave the button there to
+   * be pressed — marking the recording "unavailable" would take away the only
+   * way to hear it, over something that was never wrong with the recording.
+   */
+  async function play(auto = false) {
     if (state === "playing") {
       audioRef.current?.pause();
       setState("idle");
@@ -276,12 +316,12 @@ function AudioButton({
       }
       const audio = new Audio(url);
       audio.addEventListener("ended", () => setState("idle"));
-      audio.addEventListener("error", () => setState("failed"));
+      audio.addEventListener("error", () => setState(auto ? "idle" : "failed"));
       audioRef.current = audio;
       await audio.play();
       setState("playing");
     } catch {
-      setState("failed");
+      setState(auto ? "idle" : "failed");
     }
   }
 
@@ -293,7 +333,7 @@ function AudioButton({
     <button
       type="button"
       className="chat-words__play"
-      onClick={play}
+      onClick={() => void play()}
       aria-label={`Play the pronunciation of ${label}`}
     >
       <span aria-hidden="true">{state === "playing" ? "❚❚" : "▶"}</span>
@@ -309,7 +349,16 @@ function AudioButton({
  * handed to a synthetic voice. Only help answers get this control at all —
  * word cards carry the human recording instead.
  */
-function SpeakButton({ faqId, locale }: { faqId: string; locale: string }) {
+function SpeakButton({
+  faqId,
+  locale,
+  autoPlay,
+}: {
+  faqId: string;
+  locale: string;
+  /** Start on arrival, for a question that was asked out loud. */
+  autoPlay?: boolean;
+}) {
   const [state, setState] = useState<"idle" | "loading" | "playing" | "failed">(
     "idle"
   );
@@ -322,7 +371,14 @@ function SpeakButton({ faqId, locale }: { faqId: string; locale: string }) {
     };
   }, []);
 
-  async function play() {
+  // As above: a spoken question gets a spoken answer, once, on arrival.
+  useEffect(() => {
+    if (autoPlay) void play(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay]);
+
+  /** @param auto Started by itself, after a spoken question. See AudioButton. */
+  async function play(auto = false) {
     if (state === "playing") {
       audioRef.current?.pause();
       setState("idle");
@@ -342,12 +398,12 @@ function SpeakButton({ faqId, locale }: { faqId: string; locale: string }) {
       }
       const audio = new Audio(`data:audio/wav;base64,${body.data.audio}`);
       audio.addEventListener("ended", () => setState("idle"));
-      audio.addEventListener("error", () => setState("failed"));
+      audio.addEventListener("error", () => setState(auto ? "idle" : "failed"));
       audioRef.current = audio;
       await audio.play();
       setState("playing");
     } catch {
-      setState("failed");
+      setState(auto ? "idle" : "failed");
     }
   }
 
@@ -357,7 +413,7 @@ function SpeakButton({ faqId, locale }: { faqId: string; locale: string }) {
     <button
       type="button"
       className="chat-speak"
-      onClick={play}
+      onClick={() => void play()}
       aria-label="Read this answer aloud"
     >
       <span aria-hidden="true">{state === "playing" ? "❚❚" : "🔊"}</span>
@@ -545,7 +601,12 @@ export function ChatPanel({
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
   }, [messages]);
 
-  async function send(text: string) {
+  /**
+   * @param spoken The question came from the microphone, so the answer speaks
+   *   back — the stored recording plays without a second press. This is the
+   *   difference between a voice conversation and voice-assisted typing.
+   */
+  async function send(text: string, spoken = false) {
     const question = text.trim();
     if (!question || sending) return;
 
@@ -576,7 +637,10 @@ export function ChatPanel({
         ]);
         return;
       }
-      setMessages((m) => [...m, { id: id + "a", role: "assistant", reply: body.data }]);
+      setMessages((m) => [
+        ...m,
+        { id: id + "a", role: "assistant", reply: body.data, spoken },
+      ]);
     } catch {
       setMessages((m) => [
         ...m,
@@ -677,7 +741,7 @@ export function ChatPanel({
 
           const reply = m.reply;
           if (reply.kind === "verified_words") {
-            return <WordCard reply={reply} key={m.id} />;
+            return <WordCard reply={reply} key={m.id} autoPlay={m.spoken} />;
           }
           if (reply.kind === "help_answer") {
             return (
@@ -685,7 +749,11 @@ export function ChatPanel({
                 <p>{reply.answer}</p>
                 <div className="chat-bubble__foot">
                   {canSpeak && reply.faqId && (
-                    <SpeakButton faqId={reply.faqId} locale={locale} />
+                    <SpeakButton
+                      faqId={reply.faqId}
+                      locale={locale}
+                      autoPlay={m.spoken}
+                    />
                   )}
                   {!reply.translated && (
                     <span className="chat-card__source">
@@ -772,7 +840,10 @@ export function ChatPanel({
           <MicButton
             locale={locale}
             disabled={sending}
-            onTranscript={(text) => setInput(text)}
+            // Sent, not typed into the box. The transcript still appears in the
+            // thread as the question that was asked, so a mis-heard word is
+            // visible and can simply be asked again.
+            onTranscript={(text) => void send(text, true)}
           />
         )}
         <button
