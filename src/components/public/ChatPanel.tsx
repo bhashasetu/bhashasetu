@@ -439,10 +439,20 @@ const MAX_SECONDS = 25;
 function MicButton({
   locale,
   onTranscript,
+  onFailure,
   disabled,
 }: {
   locale: string;
   onTranscript: (text: string) => void;
+  /**
+   * Said out loud in the thread, not swallowed.
+   *
+   * A failed transcription used to leave the button back at idle with nothing
+   * else changed: the visitor pressed the microphone, spoke, and the page did
+   * nothing at all. Undiagnosable from the outside, and indistinguishable from
+   * the feature being broken — which, to them, it was.
+   */
+  onFailure: (message: string) => void;
   disabled: boolean;
 }) {
   const [state, setState] = useState<
@@ -476,13 +486,18 @@ function MicButton({
       const body = await res.json().catch(() => ({}));
 
       if (!res.ok || !body.data?.text) {
-        setState("failed");
+        setState("idle");
+        onFailure(
+          body.error ??
+            "Your question could not be turned into text. Please type it instead."
+        );
         return;
       }
       onTranscript(body.data.text);
       setState("idle");
     } catch {
-      setState("failed");
+      setState("idle");
+      onFailure("Could not reach Bhasha Setu. Please type your question.");
     }
   }
 
@@ -549,7 +564,7 @@ function MicButton({
       onClick={start}
       disabled={disabled || state === "working"}
       aria-label={label}
-      title={state === "failed" ? "That did not work — try again" : label}
+      title={label}
     >
       <span aria-hidden="true">
         {state === "recording" ? "■" : state === "working" ? "…" : "🎤"}
@@ -846,6 +861,12 @@ export function ChatPanel({
           <MicButton
             locale={locale}
             disabled={sending}
+            onFailure={(message) =>
+              setMessages((m) => [
+                ...m,
+                { id: `mic${(nextId.current += 1)}`, role: "error", text: message },
+              ])
+            }
             // Sent, not typed into the box. The transcript still appears in the
             // thread as the question that was asked, so a mis-heard word is
             // visible and can simply be asked again.

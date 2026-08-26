@@ -50,6 +50,9 @@ export function ChatConfigForm({
   const [test, setTest] = useState<
     { ok: boolean; text: string } | "running" | null
   >(null);
+  const [voiceTest, setVoiceTest] = useState<
+    { ok: boolean; text: string } | "running" | null
+  >(null);
 
   function set<K extends keyof ChatConfig>(key: K, value: ChatConfig[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -126,6 +129,39 @@ export function ChatConfigForm({
       );
     } catch (err) {
       setTest({
+        ok: false,
+        text: err instanceof Error ? err.message : "Test failed",
+      });
+    }
+  }
+
+  /**
+   * One real Bulbul call, so a silent microphone has somewhere to be looked at.
+   *
+   * Without this, "voice does not work" gives an editor nothing: the provider's
+   * complaint never reaches a screen. This shows it verbatim.
+   */
+  async function testVoice() {
+    setVoiceTest("running");
+    try {
+      const res = await fetch("/api/admin/chat-config/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "voice", voice: values.tts_voice }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setVoiceTest({ ok: false, text: body.error ?? `Failed (${res.status})` });
+        return;
+      }
+      const d = body.data;
+      setVoiceTest(
+        d.ok
+          ? { ok: true, text: `${d.reply} in ${d.ms} ms` }
+          : { ok: false, text: `${d.status ?? "No response"} — ${d.detail}` }
+      );
+    } catch (err) {
+      setVoiceTest({
         ok: false,
         text: err instanceof Error ? err.message : "Test failed",
       });
@@ -426,6 +462,34 @@ export function ChatConfigForm({
                   </option>
                 ))}
               </select>
+              <div className="cfg-test">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--ghost"
+                  onClick={testVoice}
+                  disabled={!sarvamConfigured || voiceTest === "running"}
+                >
+                  {voiceTest === "running" ? "Testing…" : "Test voice"}
+                </button>
+                {voiceTest && voiceTest !== "running" && (
+                  <span
+                    className={
+                      voiceTest.ok
+                        ? "cfg-test__result cfg-test__result--ok"
+                        : "cfg-test__result cfg-test__result--error"
+                    }
+                  >
+                    {voiceTest.text}
+                  </span>
+                )}
+              </div>
+              <p className="hp-row__hint">
+                One short Bulbul call, billed like any other. It proves the key,
+                the account and this voice — and shows Sarvam&apos;s own error
+                when something is wrong, which is the only place that error is
+                visible. Spoken questions fail the same way when the account is
+                the problem, so test here first.
+              </p>
             </div>
           </div>
 
