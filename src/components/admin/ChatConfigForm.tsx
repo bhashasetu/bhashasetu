@@ -141,13 +141,17 @@ export function ChatConfigForm({
    * Without this, "voice does not work" gives an editor nothing: the provider's
    * complaint never reaches a screen. This shows it verbatim.
    */
-  async function testVoice() {
+  async function testVoice(kind: "voice" | "listen") {
     setVoiceTest("running");
     try {
       const res = await fetch("/api/admin/chat-config/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "voice", voice: values.tts_voice }),
+        body: JSON.stringify(
+          kind === "voice"
+            ? { kind: "voice", voice: values.tts_voice }
+            : { kind: "listen" }
+        ),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -466,7 +470,7 @@ export function ChatConfigForm({
                 <button
                   type="button"
                   className="admin-btn admin-btn--ghost"
-                  onClick={testVoice}
+                  onClick={() => testVoice("voice")}
                   disabled={!sarvamConfigured || voiceTest === "running"}
                 >
                   {voiceTest === "running" ? "Testing…" : "Test voice"}
@@ -489,6 +493,33 @@ export function ChatConfigForm({
                 when something is wrong, which is the only place that error is
                 visible. Spoken questions fail the same way when the account is
                 the problem, so test here first.
+              </p>
+            </div>
+          </div>
+
+          <div className="hp-row">
+            <label className="hp-row__label" htmlFor="cfg-listen-test">
+              Test listening
+            </label>
+            <div className="hp-row__control">
+              <div className="cfg-test">
+                <button
+                  id="cfg-listen-test"
+                  type="button"
+                  className="admin-btn admin-btn--ghost"
+                  onClick={() => testVoice("listen")}
+                  disabled={!sarvamConfigured || voiceTest === "running"}
+                >
+                  {voiceTest === "running" ? "Testing…" : "Test listening"}
+                </button>
+              </div>
+              <p className="hp-row__hint">
+                Sends a second of generated sound to Sarvam&apos;s
+                speech-to-text. Nobody is speaking in it, so &quot;no speech&quot;
+                is a pass — the question is whether the recording is accepted at
+                all. Test voice passing tells you nothing about this: it is a
+                different endpoint and a different model, and it is the only call
+                here that uploads a file.
               </p>
             </div>
           </div>
