@@ -50,7 +50,13 @@ export function ChatConfigForm({
   const [test, setTest] = useState<
     { ok: boolean; text: string } | "running" | null
   >(null);
+  // One state per button. Sharing it printed the listening result beside
+  // "Test voice", which is exactly the kind of thing a diagnostic screen
+  // must not do.
   const [voiceTest, setVoiceTest] = useState<
+    { ok: boolean; text: string } | "running" | null
+  >(null);
+  const [listenTest, setListenTest] = useState<
     { ok: boolean; text: string } | "running" | null
   >(null);
 
@@ -142,7 +148,8 @@ export function ChatConfigForm({
    * complaint never reaches a screen. This shows it verbatim.
    */
   async function testVoice(kind: "voice" | "listen") {
-    setVoiceTest("running");
+    const setResult = kind === "voice" ? setVoiceTest : setListenTest;
+    setResult("running");
     try {
       const res = await fetch("/api/admin/chat-config/test", {
         method: "POST",
@@ -155,17 +162,17 @@ export function ChatConfigForm({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setVoiceTest({ ok: false, text: body.error ?? `Failed (${res.status})` });
+        setResult({ ok: false, text: body.error ?? `Failed (${res.status})` });
         return;
       }
       const d = body.data;
-      setVoiceTest(
+      setResult(
         d.ok
           ? { ok: true, text: `${d.reply} in ${d.ms} ms` }
           : { ok: false, text: `${d.status ?? "No response"} — ${d.detail}` }
       );
     } catch (err) {
-      setVoiceTest({
+      setResult({
         ok: false,
         text: err instanceof Error ? err.message : "Test failed",
       });
@@ -508,10 +515,21 @@ export function ChatConfigForm({
                   type="button"
                   className="admin-btn admin-btn--ghost"
                   onClick={() => testVoice("listen")}
-                  disabled={!sarvamConfigured || voiceTest === "running"}
+                  disabled={!sarvamConfigured || listenTest === "running"}
                 >
-                  {voiceTest === "running" ? "Testing…" : "Test listening"}
+                  {listenTest === "running" ? "Testing…" : "Test listening"}
                 </button>
+                {listenTest && listenTest !== "running" && (
+                  <span
+                    className={
+                      listenTest.ok
+                        ? "cfg-test__result cfg-test__result--ok"
+                        : "cfg-test__result cfg-test__result--error"
+                    }
+                  >
+                    {listenTest.text}
+                  </span>
+                )}
               </div>
               <p className="hp-row__hint">
                 Sends a second of generated sound to Sarvam&apos;s
