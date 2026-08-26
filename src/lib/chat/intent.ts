@@ -36,24 +36,49 @@ export type Routed = {
   term?: string;
 };
 
-/** Mentions of the two languages, in the scripts people actually type. */
-const LANGUAGE_MENTIONS = [
-  "warli",
-  "varli",
-  "katkari",
-  "kathkari",
+/**
+ * Mentions of the two languages, in the scripts people actually type, and
+ * which language each spelling means.
+ *
+ * The second half matters as much as the first: someone who asks for Warli and
+ * is shown a Katkari phrase without being told has been misinformed, and a
+ * learner has no way to catch it.
+ */
+const LANGUAGE_BY_MENTION: Record<string, "warli" | "katkari"> = {
+  warli: "warli",
+  varli: "warli",
+  katkari: "katkari",
+  kathkari: "katkari",
   // Devanagari, in the spellings that actually turn up. वार्ली came out of a
   // real transcription and was not in this list, so a question that named the
   // language read as if it had not.
-  "वारली",
-  "वारलि",
-  "वार्ली",
-  "वार्लि",
-  "कातकरी",
-  "कातकरि",
-  "काटकरी",
-  "कात्कारी",
-];
+  वारली: "warli",
+  वारलि: "warli",
+  "वार्ली": "warli",
+  "वार्लि": "warli",
+  कातकरी: "katkari",
+  कातकरि: "katkari",
+  काटकरी: "katkari",
+  "कात्कारी": "katkari",
+};
+
+const LANGUAGE_MENTIONS = Object.keys(LANGUAGE_BY_MENTION);
+
+/**
+ * Which language the question asked for, if it said.
+ *
+ * Null when it named neither, and null when it named both — two languages in
+ * one sentence is a comparison, not a request for one of them, and there is
+ * nothing to correct.
+ */
+export function namedLanguage(message: string): "warli" | "katkari" | null {
+  const lower = normalise(message).toLowerCase();
+  const named = new Set<"warli" | "katkari">();
+  for (const [mention, language] of Object.entries(LANGUAGE_BY_MENTION)) {
+    if (lower.includes(mention)) named.add(language);
+  }
+  return named.size === 1 ? [...named][0] : null;
+}
 
 /**
  * Wrappers people put around a word they want the meaning of. Ordered longest
