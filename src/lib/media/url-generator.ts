@@ -1,7 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const SIGNED_URL_EXPIRY_SECONDS = 60 * 60; // 60 minutes
-const ALLOWED_LINKED_ENTRY_TYPES = ["learning_entry"] as const;
+/**
+ * What a media asset is allowed to be attached to.
+ *
+ * "language" was added for the Language Explorer's card art (WEB-04 draws a
+ * different illustration on each language's panel). The rules below are
+ * unchanged by it: the link row must exist, the asset must be published, and
+ * the owner must be published too — the per-type branches enforce that for
+ * both. Anything not named here cannot be signed at all.
+ */
+const ALLOWED_LINKED_ENTRY_TYPES = ["learning_entry", "language"] as const;
 
 /**
  * Generates a short-lived signed URL for a media asset, but only when
@@ -55,6 +64,15 @@ export async function getSignedMediaUrl(
       .eq("id", linkedEntryId)
       .maybeSingle();
     if (!entry || entry.status !== "published") return null;
+  }
+
+  if (linkedEntryType === "language") {
+    const { data: language } = await supabase
+      .from("languages")
+      .select("status")
+      .eq("id", linkedEntryId)
+      .maybeSingle();
+    if (!language || language.status !== "published") return null;
   }
 
   if (media.media_type === "audio") {
