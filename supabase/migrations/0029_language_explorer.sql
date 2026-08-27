@@ -200,13 +200,24 @@ ALTER TABLE public.word_suggestions ENABLE ROW LEVEL SECURITY;
 
 -- Write-only for the public, exactly as chat_unanswered: a visitor can add to
 -- these, and no visitor can read what anyone else searched for or suggested.
+--
+-- Dropped first because Postgres has no CREATE POLICY IF NOT EXISTS, and this
+-- file is applied by hand in the SQL editor. Everything else here is already
+-- idempotent; without these four lines a second paste fails halfway through
+-- with "policy already exists" and leaves you guessing what ran.
+DROP POLICY IF EXISTS "public_insert_search_queries" ON public.search_queries;
 CREATE POLICY "public_insert_search_queries" ON public.search_queries
   FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "public_insert_word_suggestions" ON public.word_suggestions;
 CREATE POLICY "public_insert_word_suggestions" ON public.word_suggestions
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "admin_read_search_queries" ON public.search_queries;
 CREATE POLICY "admin_read_search_queries" ON public.search_queries
   FOR ALL USING (public.is_admin());
+
+DROP POLICY IF EXISTS "admin_full_word_suggestions" ON public.word_suggestions;
 CREATE POLICY "admin_full_word_suggestions" ON public.word_suggestions
   FOR ALL USING (public.is_admin());
 
