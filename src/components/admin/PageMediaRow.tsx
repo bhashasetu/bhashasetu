@@ -181,13 +181,19 @@ export function PageMediaRow({
             onChange={handleChoose}
             disabled={saving}
           />
+          {file && !saving && (
+            <span className="hp-media__pending">Not saved yet</span>
+          )}
+          {/* Named for what it saves. The bar at the top of the page saves the
+              text fields and nothing else, so a chosen file left sitting here
+              while someone pressed that one was simply lost. */}
           <button
             type="button"
             className="admin-btn admin-btn--primary"
             onClick={handleSave}
             disabled={!file || saving}
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Uploading…" : "Save image"}
           </button>
           {prompt && (
             <Link
@@ -201,10 +207,13 @@ export function PageMediaRow({
           )}
         </div>
 
-        {isImage && (
+        {/* Only when there is no picker. Once an image is attached the picker
+            carries its own instruction directly under the frame, and two
+            sentences about one control is one too many. */}
+        {isImage && !asset && (
           <p className="hp-media__hint">
-            Any size is fine. Nothing is cropped on upload — click the preview
-            to set the point each page crops around.
+            Any size is fine — nothing is cropped on upload. Once it is
+            attached you can click it to set the point each page crops around.
           </p>
         )}
         {slot.media_type === "video" && (

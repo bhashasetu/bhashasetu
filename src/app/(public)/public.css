@@ -498,6 +498,12 @@ button {
    Defined here rather than in one page's stylesheet: it was in stories.css,
    which loads on /stories alone, so the same class elsewhere did nothing and
    the labels rendered as visible text. */
+/* The gold run inside a heading, written by an editor as *asterisks* and
+   rendered by renderAccented(). Defined here rather than in homepage.css:
+   three pages use it, and a page that happened not to load the homepage's
+   stylesheet showed the emphasis as ordinary text. */
+.accent-text { color: var(--color-accent); }
+
 .visually-hidden {
   position: absolute;
   width: 1px;

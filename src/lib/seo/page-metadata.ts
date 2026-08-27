@@ -1,24 +1,12 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/env";
+import { routeForSlug } from "@/lib/cms/page-routes";
 
-/**
- * Maps a CMS page slug to the route that renders it.
- *
- * Slugs and routes deliberately differ (the homepage is slug 'homepage' at
- * '/', Stories & Voices is slug 'stories-voices' at '/stories'), so canonical
- * URLs and the sitemap both need this translation rather than assuming
- * `/${slug}`.
- */
-export const ROUTE_BY_SLUG: Record<string, string> = {
-  homepage: "/",
-  "stories-voices": "/stories",
-  "language-explorer": "/languages",
-};
-
-export function routeForSlug(slug: string): string {
-  return ROUTE_BY_SLUG[slug] ?? `/${slug}`;
-}
+// The map itself lives in lib/cms/page-routes.ts, which has no imports — this
+// module reaches for the Supabase server client, and the Back Office's
+// "View page" link needs the same mapping from a client component.
+export { ROUTE_BY_SLUG, routeForSlug } from "@/lib/cms/page-routes";
 
 export function absoluteUrl(path: string): string {
   return new URL(path, SITE_URL).toString();

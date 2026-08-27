@@ -384,7 +384,29 @@
 
 .admin-btn--ghost:hover { background: var(--color-bg-light); }
 
-.admin-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Inert, and unmistakably so.
+   0.55 opacity on the accent gold still read as a warm, pressable button —
+   the top "Save changes" with nothing to save and a row "Save image" holding
+   an unsaved file looked identical. A disabled button stops being gold. */
+.admin-btn:disabled {
+  background: var(--color-bg-light);
+  border-color: var(--color-border);
+  color: var(--color-text-light);
+  cursor: not-allowed;
+}
+
+.admin-btn:disabled:hover { filter: none; background: var(--color-bg-light); }
+
+/* A file chosen and not yet uploaded is the moment work goes missing. */
+.hp-media__pending {
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  background: #FDF3E3;
+  color: #8A5B00;
+  font-size: 11px;
+  font-weight: 600;
+}
 
 .admin-card {
   background: #fff;
@@ -609,9 +631,15 @@
 .hp-media:first-child { border-top: none; }
 
 /* Wide enough to click a point on accurately; the picker is a control, not
-   a thumbnail. */
-.hp-media__preview { width: 96px; }
-.hp-media__preview:has(.focal) { width: 200px; }
+   a thumbnail.
+
+   The TRACK is what widens, not the child. Setting only .hp-media__preview to
+   200px left the grid column at 96px, so every row with an attached image
+   overflowed 104px onto the body beside it and stacked the label, the file
+   input and two help paragraphs on top of one another. It looked like a
+   rendering glitch and was a one-line grid mistake. */
+.hp-media:has(.focal) { grid-template-columns: 200px minmax(0, 1fr); }
+.hp-media__preview { width: 100%; }
 
 /* ===== FOCAL POINT PICKER =====
    Click the part of an image that must stay in shot. Every slot crops around
@@ -624,6 +652,10 @@
   width: 100%;
   height: 0;
   padding: 0;
+  /* A 6:1 band is 33px tall at this width. The frame keeps the slot's ratio
+     until that stops being usable, then holds a floor — a focal point you
+     cannot click accurately is not a control. */
+  min-height: 72px;
   border: 1px solid var(--admin-border, #d8dee6);
   border-radius: 6px;
   overflow: hidden;
