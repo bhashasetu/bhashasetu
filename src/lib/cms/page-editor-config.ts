@@ -133,7 +133,35 @@ const FIELD_LABELS: Record<string, string> = {
   robot: "Bhasha Setu robot (mobile card)",
 };
 
-export function labelFor(key: string): string {
+/**
+ * Labels that only make sense on one page.
+ *
+ * FIELD_LABELS is flat because `heading` means the same thing nearly
+ * everywhere. It stops being true where a section holds a desktop field and
+ * its mobile twin: leaving one of the pair unmarked makes it read as the real
+ * one and the other as an afterthought. Both halves get named.
+ */
+const LABELS_BY_PAGE: Record<string, Record<string, string>> = {
+  // Keyed "section.field". Page-wide was too blunt: the Explorer's Suggest
+  // panel also has a `body`, and calling it "Body text — desktop band" was
+  // simply false — there is no band in that section.
+  "language-explorer": {
+    "trust.heading": "Heading — desktop band",
+    "trust.mobile_heading": "Heading — mobile card",
+    "trust.body": "Body text — desktop band",
+    "trust.mobile_body": "Body text — mobile card",
+  },
+};
+
+export function labelFor(
+  key: string,
+  pageSlug?: string,
+  sectionKey?: string
+): string {
+  const scoped = pageSlug && sectionKey
+    ? LABELS_BY_PAGE[pageSlug]?.[`${sectionKey}.${key}`]
+    : undefined;
+  if (scoped) return scoped;
   if (FIELD_LABELS[key]) return FIELD_LABELS[key];
   return key
     .replace(/_/g, " ")

@@ -13,6 +13,7 @@ import {
   type PageSection,
 } from "@/lib/cms/page-content";
 import { resolveSlotUrls } from "@/lib/media/resolve-slot-urls";
+import { renderAccented } from "@/lib/content/accent";
 import { buildPageMetadata, absoluteUrl } from "@/lib/seo/page-metadata";
 import { pronunciationAudioIds } from "@/lib/entries/search";
 import {
@@ -174,7 +175,7 @@ export default async function LanguageExplorerPage({
 
         <div className="ex-hero__inner">
           <div className="ex-hero__copy">
-            <h1 className="ex-hero__title">{heading}</h1>
+            <h1 className="ex-hero__title">{renderAccented(heading)}</h1>
             {tagline && <p className="ex-hero__tagline">{tagline}</p>}
             <span className="ex-hero__rule" aria-hidden="true" />
           </div>

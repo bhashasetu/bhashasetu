@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { routeForSlug } from "@/lib/cms/page-routes";
 import { PageMediaRow } from "./PageMediaRow";
 import { PageSeoCard, type PageSeo } from "./PageSeoCard";
 import {
@@ -97,6 +98,16 @@ export function PageContentEditor({
     { kind: "ok" | "error"; text: string } | null
   >(null);
 
+  // Surfaces are worth showing only where they differ. All-"Both" is five
+  // identical badges that tell an editor nothing, and the per-field labels
+  // ("— mobile card") carry the real distinction anyway.
+  const surfacesVary = useMemo(() => {
+    const seen = new Set(
+      sections.map((section) => surfaceFor(pageSlug, section.section_key))
+    );
+    return seen.size > 1;
+  }, [sections, pageSlug]);
+
   const dirtyIds = Object.keys(values).filter((id) => values[id] !== baseline[id]);
   const dirty = dirtyIds.length > 0;
 
@@ -158,6 +169,17 @@ export function PageContentEditor({
         </div>
         <div className="hp-bar__actions">
           {dirty && <span className="hp-bar__dirty">{dirtyIds.length} unsaved</span>}
+          {/* The page this screen edits. The sidebar's "Visit Website" goes
+              to the homepage, which is no help when you are changing a tagline
+              somewhere else. routeForSlug already maps slug to route. */}
+          <Link
+            href={routeForSlug(pageSlug)}
+            className="admin-btn admin-btn--ghost"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View page
+          </Link>
           <Link
             href={`/admin/pages/${pageId}`}
             className="admin-btn admin-btn--ghost"
@@ -195,15 +217,6 @@ export function PageContentEditor({
         ))}
       </nav>
 
-      <PageSeoCard
-        pageId={pageId}
-        seo={seo}
-        slotOptions={ordered.flatMap((section) =>
-          (section.media_slots ?? [])
-            .filter((slot) => slot.media_type === "image")
-            .map((slot) => ({ id: slot.id, label: labelFor(slot.slot_key) }))
-        )}
-      />
 
       {ordered.map((section) => {
         const fields = [...(section.page_content ?? [])].sort(
@@ -224,12 +237,14 @@ export function PageContentEditor({
           >
             <header className="hp-section__head">
               <h3>{section.title || section.section_key}</h3>
-              <span
-                className={`admin-pill admin-pill--surface-${surface.toLowerCase()}`}
-                title={`Appears on: ${surface}`}
-              >
-                {surface}
-              </span>
+              {surfacesVary && (
+                <span
+                  className={`admin-pill admin-pill--surface-${surface.toLowerCase()}`}
+                  title={`Appears on: ${surface}`}
+                >
+                  {surface}
+                </span>
+              )}
             </header>
 
             {fields.length > 0 && (
@@ -241,7 +256,7 @@ export function PageContentEditor({
                       htmlFor={`f-${field.id}`}
                       title={field.field_key}
                     >
-                      {labelFor(field.field_key)}
+                      {labelFor(field.field_key, pageSlug, section.section_key)}
                     </label>
                     <div className="hp-row__control">
                       {isLongField(field.field_key) ? (
@@ -266,7 +281,7 @@ export function PageContentEditor({
                       {supportsAccent(field.field_key) && (
                         <p className="hp-row__hint">
                           Wrap a word in *asterisks* to show it in the accent
-                          gold, as the approved design does.
+                          gold.
                         </p>
                       )}
                     </div>
@@ -284,7 +299,7 @@ export function PageContentEditor({
                       key={slot.id}
                       pageId={pageId}
                       slot={slot}
-                      label={labelFor(slot.slot_key)}
+                      label={labelFor(slot.slot_key, pageSlug, section.section_key)}
                       backHref={backHref}
                     />
                   ))}
@@ -294,6 +309,21 @@ export function PageContentEditor({
           </section>
         );
       })}
+      {/* After the content. An editor arrives here to change words on the
+          page; search and sharing is a considered, occasional edit and does
+          not deserve the first screenful. */}
+      <PageSeoCard
+        pageId={pageId}
+        seo={seo}
+        slotOptions={ordered.flatMap((section) =>
+          (section.media_slots ?? [])
+            .filter((slot) => slot.media_type === "image")
+            .map((slot) => ({
+              id: slot.id,
+              label: labelFor(slot.slot_key, pageSlug, section.section_key),
+            }))
+        )}
+      />
     </div>
   );
 }
